@@ -69,8 +69,11 @@ class KGEModel(nn.Module):
         if model_name == 'pRotatE':
             self.modulus = nn.Parameter(torch.Tensor([[0.5 * self.embedding_range.item()]]))
 
+        if model_name == 'InterHT':
+            self.u = 1
+
         # Do not forget to modify this line when you add a new model in the "forward" function
-        if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'pRotatE']:
+        if model_name not in ['TransE', 'DistMult', 'ComplEx', 'RotatE', 'pRotatE', 'InterHT']:
             raise ValueError('model %s not supported' % model_name)
 
         if model_name == 'RotatE' and (not double_entity_embedding or double_relation_embedding):
@@ -163,7 +166,8 @@ class KGEModel(nn.Module):
             'DistMult': self.DistMult,
             'ComplEx': self.ComplEx,
             'RotatE': self.RotatE,
-            'pRotatE': self.pRotatE
+            'pRotatE': self.pRotatE,
+            'InterHT': self.InterHT
         }
 
         if self.model_name in model_func:
@@ -256,6 +260,25 @@ class KGEModel(nn.Module):
         score = torch.abs(score)
 
         score = self.gamma.item() - score.sum(dim=2) * self.modulus
+        return score
+
+    def InterHT(self, head, relation, tail, mode):
+        a_head, b_head = torch.chunk(head, 2, dim=2)
+        re_head, re_mid, re_tail = torch.chunk(relation, 3, dim=2)
+        a_tail, b_tail = torch.chunk(tail, 2, dim=2)
+
+        e_h = torch.ones_like(b_head)
+        e_t = torch.ones_like(b_tail)
+
+        a_head = F.normalize(a_head, 2, -1)
+        a_tail = F.normalize(a_tail, 2, -1)
+        b_head = F.normalize(b_head, 2, -1)
+        b_tail = F.normalize(b_tail, 2, -1)
+        b_head = b_head + self.u * e_h
+        b_tail = b_tail + self.u * e_t
+
+        score = a_head * b_tail - a_tail * b_head + re_mid
+        score = self.gamma.item() - torch.norm(score, p=1, dim=2)
         return score
 
     @staticmethod
