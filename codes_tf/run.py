@@ -84,12 +84,10 @@ def run_main():
         drop_remainder=False
     )
 
-    train_iterator = BidirectionalOneShotIterator(train_dataloader_head,
-                                                  train_dataloader_tail,
-                                                  train_length_head,
-                                                  train_length_tail)
-
-    combined_dataset, _ = Bidirectional2Dataset().convert(data_generator=train_iterator)
+    combined_dataset = tf.data.Dataset.sample_from_datasets(
+        [train_dataloader_head, train_dataloader_tail],
+        weights=[0.5, 0.5]
+    )
 
     return combined_dataset, nrelation, nentity
 
@@ -160,108 +158,108 @@ BATCH_SIZE = 128
 
 dataloader, nrelation, nentity = run_main()
 
-with strategy.scope():
-    kge_model = TFKGEModel(
-        model_name=model,
-        nentity=nentity,
-        nrelation=nrelation,
-        hidden_dim=hidden_dim,
-        gamma=gamma,
-        double_entity_embedding=double_entity_embedding,
-        double_relation_embedding=double_relation_embedding,
-        triple_relation_embedding=triple_relation_embedding
-    )
-
-
-    class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-        def __call__(self, step):
-            return lrfn(epoch=step // STEPS_PER_EPOCH)
-
-
-    optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
-    train_loss = tf.keras.metrics.Sum()
-
-STEPS_PER_TPU_CALL = 99
-VALIDATION_STEPS_PER_TPU_CALL = 29
-
-
-@tf.function
-def train_step(data_iter):
-    def train_step_fn(inputs):
-        with tf.GradientTape() as tape:
-            positive_sample, negative_sample, subsampling_weight, mode = inputs
-
-            negative_score = kge_model((positive_sample, negative_sample), mode=mode)
-
-            negative_score = (
-                    tf.nn.softmax(negative_score * adversarial_temperature, axis=1).numpy() * tf.math.log_sigmoid(
-                -negative_score)).sum(axis=1)
-
-            positive_score = kge_model(positive_sample)
-
-            positive_score = tf.math.log_sigmoid(positive_score).numpy().squeeze(axis=1)
-
-            positive_sample_loss = - (subsampling_weight * positive_score).sum() / subsampling_weight.sum()
-            negative_sample_loss = - (subsampling_weight * negative_score).sum() / subsampling_weight.sum()
-
-            loss = (positive_sample_loss + negative_sample_loss) / 2
-
-        grads = tape.gradient(loss, kge_model.trainable_variables)
-        optimizer.apply_gradients(zip(grads, kge_model.trainable_variables))
-
-        # update metrics
-        train_loss.update_state(loss)
-
-    # this loop runs on the TPU
-    for _ in tf.range(STEPS_PER_TPU_CALL):
-        strategy.run(train_step_fn, next(data_iter))
-
-
-# training
-start_time = epoch_start_time = time.time()
-train_dist_ds = strategy.experimental_distribute_dataset(dataloader)
-
-print("Training steps per epoch:", STEPS_PER_EPOCH, "in increments of", STEPS_PER_TPU_CALL)
-
-History = namedtuple('History', 'history')
-history = History(
-    history={
-        'loss': [],
-        'val_loss': [],
-        'sparse_categorical_accuracy': [],
-        'val_sparse_categorical_accuracy': []
-    }
-)
-
-epoch = 0
-train_data_iter = iter(train_dist_ds)
-
-step = 0
-epoch_steps = 0
-while True:
-
-    # run training step
-    train_step(train_data_iter)
-    epoch_steps += STEPS_PER_TPU_CALL
-    step += STEPS_PER_TPU_CALL
-    print('=', end='', flush=True)
-
-    # compute metrics
-    history.history['loss'].append(train_loss.result().numpy() / (BATCH_SIZE * epoch_steps))
-
-    # report metrics
-    epoch_time = time.time() - epoch_start_time
-    print('\nEPOCH {:d}/{:d}'.format(epoch + 1, EPOCHS))
-    print('time: {:0.1f}s'.format(epoch_time),
-          'loss: {:0.4f}'.format(history.history['loss'][-1]),
-          'lr: {:0.4g}'.format(lrfn(epoch)), flush=True)
-
-    epoch = step // STEPS_PER_EPOCH
-    epoch_steps = 0
-    epoch_start_time = time.time()
-    train_loss.reset_states()
-    if epoch >= EPOCHS:
-        break
-
-optimized_ctl_training_time = time.time() - start_time
-print("OPTIMIZED CTL TRAINING TIME: {:0.1f}s".format(optimized_ctl_training_time))
+# with strategy.scope():
+#     kge_model = TFKGEModel(
+#         model_name=model,
+#         nentity=nentity,
+#         nrelation=nrelation,
+#         hidden_dim=hidden_dim,
+#         gamma=gamma,
+#         double_entity_embedding=double_entity_embedding,
+#         double_relation_embedding=double_relation_embedding,
+#         triple_relation_embedding=triple_relation_embedding
+#     )
+#
+#
+#     class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+#         def __call__(self, step):
+#             return lrfn(epoch=step // STEPS_PER_EPOCH)
+#
+#
+#     optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
+#     train_loss = tf.keras.metrics.Sum()
+#
+# STEPS_PER_TPU_CALL = 99
+# VALIDATION_STEPS_PER_TPU_CALL = 29
+#
+#
+# @tf.function
+# def train_step(data_iter):
+#     def train_step_fn(inputs):
+#         with tf.GradientTape() as tape:
+#             positive_sample, negative_sample, subsampling_weight, mode = inputs
+#
+#             negative_score = kge_model((positive_sample, negative_sample), mode=mode)
+#
+#             negative_score = (
+#                     tf.nn.softmax(negative_score * adversarial_temperature, axis=1).numpy() * tf.math.log_sigmoid(
+#                 -negative_score)).sum(axis=1)
+#
+#             positive_score = kge_model(positive_sample)
+#
+#             positive_score = tf.math.log_sigmoid(positive_score).numpy().squeeze(axis=1)
+#
+#             positive_sample_loss = - (subsampling_weight * positive_score).sum() / subsampling_weight.sum()
+#             negative_sample_loss = - (subsampling_weight * negative_score).sum() / subsampling_weight.sum()
+#
+#             loss = (positive_sample_loss + negative_sample_loss) / 2
+#
+#         grads = tape.gradient(loss, kge_model.trainable_variables)
+#         optimizer.apply_gradients(zip(grads, kge_model.trainable_variables))
+#
+#         # update metrics
+#         train_loss.update_state(loss)
+#
+#     # this loop runs on the TPU
+#     for _ in tf.range(STEPS_PER_TPU_CALL):
+#         strategy.run(train_step_fn, next(data_iter))
+#
+#
+# # training
+# start_time = epoch_start_time = time.time()
+# train_dist_ds = strategy.experimental_distribute_dataset(dataloader)
+#
+# print("Training steps per epoch:", STEPS_PER_EPOCH, "in increments of", STEPS_PER_TPU_CALL)
+#
+# History = namedtuple('History', 'history')
+# history = History(
+#     history={
+#         'loss': [],
+#         'val_loss': [],
+#         'sparse_categorical_accuracy': [],
+#         'val_sparse_categorical_accuracy': []
+#     }
+# )
+#
+# epoch = 0
+# train_data_iter = iter(train_dist_ds)
+#
+# step = 0
+# epoch_steps = 0
+# while True:
+#
+#     # run training step
+#     train_step(train_data_iter)
+#     epoch_steps += STEPS_PER_TPU_CALL
+#     step += STEPS_PER_TPU_CALL
+#     print('=', end='', flush=True)
+#
+#     # compute metrics
+#     history.history['loss'].append(train_loss.result().numpy() / (BATCH_SIZE * epoch_steps))
+#
+#     # report metrics
+#     epoch_time = time.time() - epoch_start_time
+#     print('\nEPOCH {:d}/{:d}'.format(epoch + 1, EPOCHS))
+#     print('time: {:0.1f}s'.format(epoch_time),
+#           'loss: {:0.4f}'.format(history.history['loss'][-1]),
+#           'lr: {:0.4g}'.format(lrfn(epoch)), flush=True)
+#
+#     epoch = step // STEPS_PER_EPOCH
+#     epoch_steps = 0
+#     epoch_start_time = time.time()
+#     train_loss.reset_states()
+#     if epoch >= EPOCHS:
+#         break
+#
+# optimized_ctl_training_time = time.time() - start_time
+# print("OPTIMIZED CTL TRAINING TIME: {:0.1f}s".format(optimized_ctl_training_time))
