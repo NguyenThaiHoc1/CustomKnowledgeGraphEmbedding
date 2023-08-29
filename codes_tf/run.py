@@ -25,6 +25,11 @@ negative_adversarial_sampling = True
 uni_weight = False
 adversarial_temperature = 1.0
 
+# Training ...
+STEPS_PER_EPOCH = 10
+BATCH_SIZE = 8
+negative_sample_size = 256
+
 
 def read_triple(file_path, entity2id, relation2id):
     triples = []
@@ -58,7 +63,6 @@ def run_main():
     train_triples, valid_triples, test_triples, entity2id, relation2id = read_data()
     nentity = len(entity2id)
     nrelation = len(relation2id)
-    negative_sample_size = 128
 
     # train
     train_generator_head = DataGenerator(
@@ -91,7 +95,7 @@ def run_main():
 
     combined_dataset = combined_dataset.repeat()  # the training dataset must repeat for several epochs
     combined_dataset = combined_dataset.shuffle(2048)
-    combined_dataset = combined_dataset.batch(16, drop_remainder=True)  # slighly faster with fixed tensor sizes
+    combined_dataset = combined_dataset.batch(BATCH_SIZE, drop_remainder=True)  # slighly faster with fixed tensor sizes
     combined_dataset = combined_dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
     return combined_dataset, nrelation, nentity
@@ -144,7 +148,7 @@ try:  # detect TPUs
     strategy = tf.distribute.TPUStrategy(tpu)
 except ValueError:  # detect GPUs
     # strategy = tf.distribute.MirroredStrategy()  # for GPU or multi-GPU machines
-    strategy = tf.distribute.get_strategy() # default strategy that works on CPU and single GPU
+    strategy = tf.distribute.get_strategy()  # default strategy that works on CPU and single GPU
     # strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy() # for clusters of multi-GPU machines
 
 print("Number of accelerators: ", strategy.num_replicas_in_sync)
@@ -156,10 +160,6 @@ LR_MIN = 0.00001
 LR_RAMPUP_EPOCHS = 5.0
 LR_SUSTAIN_EPOCHS = 0.0
 LR_EXP_DECAY = .8
-
-# Training ...
-STEPS_PER_EPOCH = 10
-BATCH_SIZE = 128
 
 dataloader, nrelation, nentity = run_main()
 
@@ -194,27 +194,33 @@ def train_step(data_iter):
         with tf.GradientTape() as tape:
             print("====================== 1")
 
+            print(f">>>>>> {positive_sample} == {positive_sample.shape}")
+
+            print(f">>>>>> {negative_sample} == {negative_sample.shape}")
+
             negative_score = kge_model((positive_sample, negative_sample), mode=mode)
 
             print("====================== 2")
 
             negative_score = (
-                  tf.nn.softmax(negative_score * adversarial_temperature, axis=1)
-                  * -tf.math.log_sigmoid(-negative_score)
+                    tf.nn.softmax(negative_score * adversarial_temperature, axis=1)
+                    * -tf.math.log_sigmoid(-negative_score)
             ).numpy().sum(axis=1)
 
-            print("====================== 3")
+            print(f"====================== 3 {negative_score}")
 
             positive_score = kge_model(positive_sample)
 
-            print("====================== 4")
+            print(f"====================== 4 positive_score: {positive_score}")
 
             positive_score = tf.math.log_sigmoid(positive_score).numpy().squeeze(axis=1)
 
-            print("====================== 5")
+            print(f"====================== 5 positive_score: {positive_score}")
 
-            positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(subsampling_weight)
-            negative_sample_loss = -tf.reduce_sum(subsampling_weight * negative_score) / tf.reduce_sum(subsampling_weight)
+            positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
+                subsampling_weight)
+            negative_sample_loss = -tf.reduce_sum(subsampling_weight * negative_score) / tf.reduce_sum(
+                subsampling_weight)
 
             print(f"-- {positive_sample_loss}")
             print(f"-- {negative_sample_loss}")

@@ -163,13 +163,15 @@ class TFKGEModel(tf.keras.Model):
         e_h = tf.ones_like(b_head)
         e_t = tf.ones_like(b_tail)
 
-        a_head = tf.math.l2_normalize(a_head, axis=-1)
-        a_tail = tf.math.l2_normalize(a_tail, axis=-1)
-        b_head = tf.math.l2_normalize(b_head, axis=-1)
-        b_tail = tf.math.l2_normalize(b_tail, axis=-1)
+        a_head = tf.linalg.normalize(a_head, ord=2, axis=-1)[0]
+        a_tail = tf.linalg.normalize(a_tail, ord=2, axis=-1)[0]
+        b_head = tf.linalg.normalize(b_head, ord=2, axis=-1)[0]
+        b_tail = tf.linalg.normalize(b_tail, ord=2, axis=-1)[0]
         b_head = b_head + self.u * e_h
         b_tail = b_tail + self.u * e_t
 
         score = a_head * b_tail - a_tail * b_head + re_mid
-        score = self.gamma - tf.norm(score, ord='euclidean', axis=2)
+        print("  xxxxxxxxxxxxx Score:", score)
+        score = self.gamma.numpy() - tf.norm(score, ord=1, axis=2)
+        print("  xxxxxxxxxxxxx Score_1:", score)
         return score

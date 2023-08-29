@@ -198,7 +198,7 @@ class DataGenerator2Dataset:
             self._gen_data_generator,
             output_signature=(
                 tf.TensorSpec(shape=(3,), dtype=tf.int32),
-                tf.TensorSpec(shape=(128,), dtype=tf.int32),
+                tf.TensorSpec(shape=(256,), dtype=tf.int32),
                 tf.TensorSpec(shape=(1,), dtype=tf.float32),
                 tf.TensorSpec(shape=(), dtype=tf.string)
             )
