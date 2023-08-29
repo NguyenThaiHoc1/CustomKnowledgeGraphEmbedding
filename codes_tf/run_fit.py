@@ -2,7 +2,7 @@ import os
 from dataloader import DataLoader
 from dataloader import DataGenerator
 from dataloader import DataGenerator2Dataset, BidirectionalOneShotIterator, Bidirectional2Dataset
-from model import TFKGEModel
+from model1 import TFKGEModel
 import time
 from time import sleep
 from tqdm import tqdm
@@ -161,8 +161,11 @@ LR_MIN = 0.00001
 LR_RAMPUP_EPOCHS = 5.0
 LR_SUSTAIN_EPOCHS = 0.0
 LR_EXP_DECAY = .8
+STEPS_PER_TPU_CALL = 99
+VALIDATION_STEPS_PER_TPU_CALL = 29
 
 dataloader, nrelation, nentity = run_main()
+train_dist_ds = strategy.experimental_distribute_dataset(dataloader)
 
 with strategy.scope():
     kge_model = TFKGEModel(
@@ -183,48 +186,13 @@ with strategy.scope():
 
 
     optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
-    train_loss = tf.keras.metrics.Sum()
 
-STEPS_PER_TPU_CALL = 99
-VALIDATION_STEPS_PER_TPU_CALL = 29
+    model.compile(optimizer=optimizer,
+                  loss=None,
+                  metrics=None)
 
-
-@tf.function
-def train_step(data_iter):
-    def train_step_fn(positive_sample, negative_sample, subsampling_weight, mode):
-        with tf.GradientTape() as tape:
-            negative_score = kge_model(((positive_sample, negative_sample), mode[0]))
-            negative_score = tf.reduce_sum(
-                tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1)
-            positive_score = kge_model(((positive_sample, negative_sample), b'single'))
-            positive_score = tf.squeeze(tf.math.log_sigmoid(positive_score), axis=1)
-            positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
-                subsampling_weight)
-            negative_sample_loss = -tf.reduce_sum(subsampling_weight * negative_score) / tf.reduce_sum(
-                subsampling_weight)
-            loss = (positive_sample_loss + negative_sample_loss) / 2
-
-        grads = tape.gradient(loss, kge_model.trainable_variables)
-        optimizer.apply_gradients(zip(grads, kge_model.trainable_variables))
-
-        # update metrics
-        train_loss.update_state(loss)
-
-    # this loop runs on the TPU
-    for _ in tf.range(STEPS_PER_TPU_CALL):
-        strategy.run(train_step_fn, next(data_iter))
-
-
-# training
-start_time = epoch_start_time = time.time()
-train_dist_ds = strategy.experimental_distribute_dataset(dataloader)
-
-model.compile(optimizer=None,
-              loss=None,
-              metrics=None)
-
-model.fit(
-    train_dist_ds,
-    steps_per_epoch=STEPS_PER_EPOCH,
-    epochs=EPOCHS
-)
+    model.fit(
+        train_dist_ds,
+        steps_per_epoch=STEPS_PER_EPOCH,
+        epochs=EPOCHS
+    )
