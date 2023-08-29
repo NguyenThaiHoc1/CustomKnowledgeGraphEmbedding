@@ -26,7 +26,7 @@ uni_weight = False
 adversarial_temperature = 1.0
 
 # Training ...
-STEPS_PER_EPOCH = 10
+STEPS_PER_EPOCH = 10000
 BATCH_SIZE = 8
 negative_sample_size = 256
 
@@ -192,39 +192,14 @@ def train_step(data_iter):
     def train_step_fn(positive_sample, negative_sample, subsampling_weight, mode):
         mode = mode.numpy()[0].decode('utf-8')
         with tf.GradientTape() as tape:
-            print("====================== 1")
-
-            print(f">>>>>> {positive_sample} == {positive_sample.shape}")
-
-            print(f">>>>>> {negative_sample} == {negative_sample.shape}")
-
             negative_score = kge_model((positive_sample, negative_sample), mode=mode)
-
-            print("====================== 2")
-
-            negative_score = (
-                    tf.nn.softmax(negative_score * adversarial_temperature, axis=1)
-                    * -tf.math.log_sigmoid(-negative_score)
-            ).numpy().sum(axis=1)
-
-            print(f"====================== 3 {negative_score}")
-
+            negative_score = tf.reduce_sum(tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1)
             positive_score = kge_model(positive_sample)
-
-            print(f"====================== 4 positive_score: {positive_score}")
-
-            positive_score = tf.math.log_sigmoid(positive_score).numpy().squeeze(axis=1)
-
-            print(f"====================== 5 positive_score: {positive_score}")
-
+            positive_score = tf.squeeze(tf.math.log_sigmoid(positive_score), axis=1)
             positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
                 subsampling_weight)
             negative_sample_loss = -tf.reduce_sum(subsampling_weight * negative_score) / tf.reduce_sum(
                 subsampling_weight)
-
-            print(f"-- {positive_sample_loss}")
-            print(f"-- {negative_sample_loss}")
-            print("====================== 6")
             loss = (positive_sample_loss + negative_sample_loss) / 2
 
         grads = tape.gradient(loss, kge_model.trainable_variables)
