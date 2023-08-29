@@ -56,7 +56,7 @@ class DataLoader(object):
                     buffer_size = min(self._size, buffer_size)
                 dataset = dataset.shuffle(buffer_size=buffer_size)
 
-        dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+        # dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
         return dataset
 

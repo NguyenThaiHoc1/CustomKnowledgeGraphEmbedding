@@ -60,7 +60,7 @@ class TFKGEModel(tf.keras.Model):
                  double_entity_embedding=False, double_relation_embedding=False,
                  triple_relation_embedding=False,
                  **kwargs):
-        super(TFKGEModel).__init__()
+        super().__init__(**kwargs)
         self.model_name = model_name
         self.nentity = nentity
         self.nrelation = nrelation
@@ -87,6 +87,9 @@ class TFKGEModel(tf.keras.Model):
         else:
             self.relation_dim = hidden_dim
 
+        if model_name == 'InterHT':
+            self.u = 1
+
         self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
         self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
 
@@ -103,25 +106,38 @@ class TFKGEModel(tf.keras.Model):
             batch_size, negative_sample_size = tf.shape(sample)[0], 1
 
             head = tf.gather(self.entity_embedding, sample[:, 0])
+            head = tf.expand_dims(head, axis=1)
+
             relation = tf.gather(self.relation_embedding, sample[:, 1])
+            relation = tf.expand_dims(relation, axis=1)
+
             tail = tf.gather(self.entity_embedding, sample[:, 2])
+            tail = tf.expand_dims(tail, axis=1)
 
         elif mode == 'head-batch':
             tail_part, head_part = sample
             batch_size, negative_sample_size = tf.shape(head_part)[0], tf.shape(head_part)[1]
 
             head = tf.gather(self.entity_embedding, tf.reshape(head_part, [-1]))
-            relation = tf.gather(self.relation_embedding, tail_part[:, 1])
-            tail = tf.gather(self.entity_embedding, tail_part[:, 2])
-
             head = tf.reshape(head, [batch_size, negative_sample_size, -1])
 
+            relation = tf.gather(self.relation_embedding, tail_part[:, 1])
+            relation = tf.expand_dims(relation, axis=1)
+
+            tail = tf.gather(self.entity_embedding, tail_part[:, 2])
+            tail = tf.expand_dims(tail, axis=1)
+
         elif mode == 'tail-batch':
+
             head_part, tail_part = sample
             batch_size, negative_sample_size = tf.shape(tail_part)[0], tf.shape(tail_part)[1]
 
             head = tf.gather(self.entity_embedding, head_part[:, 0])
+            head = tf.expand_dims(head, axis=1)
+
             relation = tf.gather(self.relation_embedding, head_part[:, 1])
+            relation = tf.expand_dims(relation, axis=1)
+
             tail = tf.gather(self.entity_embedding, tf.reshape(tail_part, [-1]))
             tail = tf.reshape(tail, [batch_size, negative_sample_size, -1])
 
