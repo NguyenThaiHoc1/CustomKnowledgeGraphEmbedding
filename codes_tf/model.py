@@ -44,16 +44,6 @@ def loss(model,
     return loss
 
 
-def grad(model, inputs, regularization,
-         negative_adversarial_sampling,
-         uni_weight, adversarial_temperature):
-    """Calculates the loss and the gradients given an example (x, y)"""
-    loss_value = loss(model, inputs, regularization,
-                      negative_adversarial_sampling,
-                      uni_weight, adversarial_temperature)
-    return loss_value, tf.gradients(loss_value, model.trainable_variables)
-
-
 class TFKGEModel(tf.keras.Model):
 
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma,
@@ -101,20 +91,25 @@ class TFKGEModel(tf.keras.Model):
         initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
         self.relation_embedding.assign(initializer(self.relation_embedding.shape))
 
-    def call(self, sample, training=True, mode='single', **kwargs):
-        if mode == 'single':
-            batch_size, negative_sample_size = tf.shape(sample)[0], 1
+    def call(self, sample, training=True, **kwargs):
+        sample, mode = sample
 
-            head = tf.gather(self.entity_embedding, sample[:, 0])
+        def single_mode():
+            positive_sample, negative_sample = sample
+            batch_size, negative_sample_size = tf.shape(positive_sample)[0], 1
+
+            head = tf.gather(self.entity_embedding, positive_sample[:, 0])
             head = tf.expand_dims(head, axis=1)
 
-            relation = tf.gather(self.relation_embedding, sample[:, 1])
+            relation = tf.gather(self.relation_embedding, positive_sample[:, 1])
             relation = tf.expand_dims(relation, axis=1)
 
-            tail = tf.gather(self.entity_embedding, sample[:, 2])
+            tail = tf.gather(self.entity_embedding, positive_sample[:, 2])
             tail = tf.expand_dims(tail, axis=1)
 
-        elif mode == 'head-batch':
+            return head, relation, tail
+
+        def head_batch_mode():
             tail_part, head_part = sample
             batch_size, negative_sample_size = tf.shape(head_part)[0], tf.shape(head_part)[1]
 
@@ -127,8 +122,9 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, tail_part[:, 2])
             tail = tf.expand_dims(tail, axis=1)
 
-        elif mode == 'tail-batch':
+            return head, relation, tail
 
+        def tail_batch_mode():
             head_part, tail_part = sample
             batch_size, negative_sample_size = tf.shape(tail_part)[0], tf.shape(tail_part)[1]
 
@@ -141,8 +137,20 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, tf.reshape(tail_part, [-1]))
             tail = tf.reshape(tail, [batch_size, negative_sample_size, -1])
 
-        else:
+            return head, relation, tail
+
+        def default_mode():
+            head = tf.gather(self.entity_embedding, sample[0][:, 0])
+            head = tf.expand_dims(head, axis=1)
+            return head, head, head
+
             raise ValueError('mode %s not supported' % mode)
+
+        head, relation, tail = tf.cond(tf.equal(mode, b'single'), lambda: single_mode(),
+                                       lambda: tf.cond(tf.equal(mode, b'head-batch'), lambda: head_batch_mode(),
+                                                       lambda: tf.cond(tf.equal(mode, b'tail-batch'),
+                                                                       lambda: tail_batch_mode(),
+                                                                       lambda: default_mode())))
 
         model_func = {
             'InterHT': self.InterHT
@@ -171,5 +179,5 @@ class TFKGEModel(tf.keras.Model):
         b_tail = b_tail + self.u * e_t
 
         score = a_head * b_tail - a_tail * b_head + re_mid
-        score = self.gamma.numpy() - tf.norm(score, ord=1, axis=2)
+        score = self.gamma - tf.norm(score, ord=1, axis=2)
         return score

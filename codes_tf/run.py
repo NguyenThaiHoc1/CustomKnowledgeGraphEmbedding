@@ -82,17 +82,18 @@ def run_main():
         drop_remainder=False
     )
 
-    train_dataloader_tail = DataLoader(train_dataset_tail).gen_dataset(
-        batch_size=16, is_training=True, shuffle=True,
-        input_pipeline_context=None, preprocess=None,
-        drop_remainder=False
-    )
+    # train_dataloader_tail = DataLoader(train_dataset_tail).gen_dataset(
+    #     batch_size=16, is_training=True, shuffle=True,
+    #     input_pipeline_context=None, preprocess=None,
+    #     drop_remainder=False
+    # )
 
-    combined_dataset = tf.data.Dataset.sample_from_datasets(
-        [train_dataloader_head, train_dataloader_tail],
-        weights=[0.5, 0.5]
-    )
+    # combined_dataset = tf.data.Dataset.sample_from_datasets(
+    #     [train_dataloader_head, train_dataloader_tail],
+    #     weights=[0.5, 0.5]
+    # )
 
+    combined_dataset = train_dataloader_head
     combined_dataset = combined_dataset.repeat()  # the training dataset must repeat for several epochs
     combined_dataset = combined_dataset.shuffle(2048)
     combined_dataset = combined_dataset.batch(BATCH_SIZE, drop_remainder=True)  # slighly faster with fixed tensor sizes
@@ -187,14 +188,13 @@ with strategy.scope():
 STEPS_PER_TPU_CALL = 99
 VALIDATION_STEPS_PER_TPU_CALL = 29
 
-
+@tf.function
 def train_step(data_iter):
     def train_step_fn(positive_sample, negative_sample, subsampling_weight, mode):
-        mode = mode.numpy()[0].decode('utf-8')
         with tf.GradientTape() as tape:
-            negative_score = kge_model((positive_sample, negative_sample), mode=mode)
+            negative_score = kge_model(((positive_sample, negative_sample), mode[0]))
             negative_score = tf.reduce_sum(tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1)
-            positive_score = kge_model(positive_sample)
+            positive_score = kge_model(((positive_sample, negative_sample ), b'single'))
             positive_score = tf.squeeze(tf.math.log_sigmoid(positive_score), axis=1)
             positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
                 subsampling_weight)
