@@ -185,7 +185,7 @@ class TFKGEModel(tf.keras.Model):
         return score
 
     @tf.function
-    def train_step_fn(self, inputs):
+    def train_step(self, inputs, training=True, **kwargs):
         positive_sample, negative_sample, subsampling_weight, mode = inputs
         with tf.GradientTape() as tape:
             negative_score = self(((positive_sample, negative_sample), mode[0]), training=True)
