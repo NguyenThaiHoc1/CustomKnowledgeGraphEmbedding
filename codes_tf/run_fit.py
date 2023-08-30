@@ -11,7 +11,9 @@ import tensorflow as tf
 from collections import namedtuple
 
 EPOCHS = 10
-data_path = "data/wn18rr"
+# data_path = "data/wn18rr"
+data_path = "D:\hoc-nt\FJS\KGE\CustomKnowledgeGraphEmbedding\data\wn18rr"
+
 model = "InterHT"
 hidden_dim = 1000
 gamma = 24.0
@@ -74,13 +76,13 @@ def run_main():
     )
 
     train_dataset_head, train_length_head = DataGenerator2Dataset().convert(data_generator=train_generator_head)
-    train_dataset_tail, train_length_tail = DataGenerator2Dataset().convert(data_generator=train_generator_tail)
+    # train_dataset_tail, train_length_tail = DataGenerator2Dataset().convert(data_generator=train_generator_tail)
 
-    train_dataloader_head = DataLoader(train_dataset_head).gen_dataset(
-        batch_size=16, is_training=True, shuffle=True,
-        input_pipeline_context=None, preprocess=None,
-        drop_remainder=False
-    )
+    # train_dataloader_head = DataLoader(train_dataset_head).gen_dataset(
+    #     batch_size=16, is_training=True, shuffle=True,
+    #     input_pipeline_context=None, preprocess=None,
+    #     drop_remainder=False
+    # )
 
     # train_dataloader_tail = DataLoader(train_dataset_tail).gen_dataset(
     #     batch_size=16, is_training=True, shuffle=True,
@@ -93,10 +95,10 @@ def run_main():
     #     weights=[0.5, 0.5]
     # )
 
-    combined_dataset = train_dataloader_head
+    combined_dataset = train_dataset_head
+    combined_dataset = combined_dataset.repeat()  # the training dataset must repeat for several epochs
     combined_dataset = combined_dataset.shuffle(2048)
     combined_dataset = combined_dataset.batch(BATCH_SIZE, drop_remainder=True)  # slighly faster with fixed tensor sizes
-    combined_dataset = combined_dataset.repeat()  # the training dataset must repeat for several epochs
     combined_dataset = combined_dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
     return combined_dataset, nrelation, nentity
@@ -165,34 +167,34 @@ STEPS_PER_TPU_CALL = 99
 VALIDATION_STEPS_PER_TPU_CALL = 29
 
 dataloader, nrelation, nentity = run_main()
-train_dist_ds = strategy.experimental_distribute_dataset()
+train_dist_ds = strategy.experimental_distribute_dataset(dataloader)
 
-with strategy.scope():
-    kge_model = TFKGEModel(
-        model_name=model,
-        nentity=nentity,
-        nrelation=nrelation,
-        hidden_dim=hidden_dim,
-        gamma=gamma,
-        double_entity_embedding=double_entity_embedding,
-        double_relation_embedding=double_relation_embedding,
-        triple_relation_embedding=triple_relation_embedding
-    )
-
-
-    class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-        def __call__(self, step):
-            return lrfn(epoch=step // STEPS_PER_EPOCH)
-
-
-    optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
-
-    kge_model.compile(optimizer=optimizer,
-                      loss=None,
-                      metrics=None)
-
-    kge_model.fit(
-        train_dist_ds,
-        steps_per_epoch=STEPS_PER_EPOCH,
-        epochs=EPOCHS
-    )
+# with strategy.scope():
+#     kge_model = TFKGEModel(
+#         model_name=model,
+#         nentity=nentity,
+#         nrelation=nrelation,
+#         hidden_dim=hidden_dim,
+#         gamma=gamma,
+#         double_entity_embedding=double_entity_embedding,
+#         double_relation_embedding=double_relation_embedding,
+#         triple_relation_embedding=triple_relation_embedding
+#     )
+#
+#
+#     class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+#         def __call__(self, step):
+#             return lrfn(epoch=step // STEPS_PER_EPOCH)
+#
+#
+#     optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
+#
+#     kge_model.compile(optimizer=optimizer,
+#                       loss=None,
+#                       metrics=None)
+#
+#     kge_model.fit(
+#         train_dist_ds,
+#         steps_per_epoch=STEPS_PER_EPOCH,
+#         epochs=EPOCHS
+#     )

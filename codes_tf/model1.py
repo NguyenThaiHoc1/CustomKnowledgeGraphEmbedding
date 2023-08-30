@@ -166,28 +166,23 @@ class TFKGEModel(tf.keras.Model):
         return score
 
     def InterHT(self, head, relation, tail, mode):
-      a_head = tf.slice(head, [0, 0, 0], [-1, -1, tf.shape(head)[-1] // 2])
-      b_head = tf.slice(head, [0, 0, tf.shape(head)[-1] // 2], [-1, -1, tf.shape(head)[-1] // 2])
-      re_head = tf.slice(relation, [0, 0, 0], [-1, 1, 1000])
-      re_mid = tf.slice(relation, [0, 0, 1000], [-1, 1, 1000])
-      re_tail = tf.slice(relation, [0, 0, 2000], [-1, 1, 1000])
-      a_tail = tf.slice(tail, [0, 0, 0], [-1, -1, tf.shape(tail)[-1]  // 2])
-      b_tail = tf.slice(tail, [0, 0, tf.shape(tail)[-1]  // 2], [-1, -1, tf.shape(tail)[-1]  // 2])
+        a_head, b_head = tf.split(head, num_or_size_splits=2, axis=2)
+        re_head, re_mid, re_tail = tf.split(relation, num_or_size_splits=3, axis=2)
+        a_tail, b_tail = tf.split(tail, num_or_size_splits=2, axis=2)
 
+        e_h = tf.ones_like(b_head)
+        e_t = tf.ones_like(b_tail)
 
-      e_h = tf.ones_like(b_head)
-      e_t = tf.ones_like(b_tail)
+        a_head = tf.linalg.normalize(a_head, ord=2, axis=-1)[0]
+        a_tail = tf.linalg.normalize(a_tail, ord=2, axis=-1)[0]
+        b_head = tf.linalg.normalize(b_head, ord=2, axis=-1)[0]
+        b_tail = tf.linalg.normalize(b_tail, ord=2, axis=-1)[0]
+        b_head = b_head + self.u * e_h
+        b_tail = b_tail + self.u * e_t
 
-      a_head = tf.linalg.normalize(a_head, ord=2, axis=-1)[0]
-      a_tail = tf.linalg.normalize(a_tail, ord=2, axis=-1)[0]
-      b_head = tf.linalg.normalize(b_head, ord=2, axis=-1)[0]
-      b_tail = tf.linalg.normalize(b_tail, ord=2, axis=-1)[0]
-      b_head = b_head + self.u * e_h
-      b_tail = b_tail + self.u * e_t
-
-      score = a_head * b_tail - a_tail * b_head + re_mid
-      score = self.gamma - tf.norm(score, ord=1, axis=2)
-      return score
+        score = a_head * b_tail - a_tail * b_head + re_mid
+        score = self.gamma - tf.norm(score, ord=1, axis=2)
+        return score
 
     def train_step(self, inputs, training=True, **kwargs):
         positive_sample, negative_sample, subsampling_weight, mode = inputs
