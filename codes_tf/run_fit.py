@@ -165,7 +165,7 @@ STEPS_PER_TPU_CALL = 99
 VALIDATION_STEPS_PER_TPU_CALL = 29
 
 dataloader, nrelation, nentity = run_main()
-train_dist_ds = dataloader # strategy.experimental_distribute_dataset()
+train_dist_ds = strategy.experimental_distribute_dataset()
 
 with strategy.scope():
     kge_model = TFKGEModel(
