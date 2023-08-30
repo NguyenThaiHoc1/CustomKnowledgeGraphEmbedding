@@ -11,8 +11,8 @@ import tensorflow as tf
 from collections import namedtuple
 
 EPOCHS = 10
-# data_path = "data/wn18rr"
-data_path = "D:\hoc-nt\FJS\KGE\CustomKnowledgeGraphEmbedding\data\wn18rr"
+data_path = "data/wn18rr"
+# data_path = "D:\hoc-nt\FJS\KGE\CustomKnowledgeGraphEmbedding\data\wn18rr"
 
 model = "InterHT"
 hidden_dim = 1000
