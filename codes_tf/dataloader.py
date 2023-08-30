@@ -146,14 +146,14 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         while negative_sample_size < self.negative_sample_size:
             negative_sample = np.random.randint(self.nentity, size=self.negative_sample_size * 2)
-            if self.mode == 'head-batch':
+            if self.mode == 0:
                 mask = np.in1d(
                     negative_sample,
                     self.true_head[(relation, tail)],
                     assume_unique=True,
                     invert=True
                 )
-            elif self.mode == 'tail-batch':
+            elif self.mode == 1:
                 mask = np.in1d(
                     negative_sample,
                     self.true_tail[(head, relation)],
@@ -200,7 +200,7 @@ class DataGenerator2Dataset:
                 tf.TensorSpec(shape=(3,), dtype=tf.int32),
                 tf.TensorSpec(shape=(256,), dtype=tf.int32),
                 tf.TensorSpec(shape=(1,), dtype=tf.float32),
-                tf.TensorSpec(shape=(), dtype=tf.string)
+                tf.TensorSpec(shape=(), dtype=tf.int32)
             )
         )
         return dataset, len(self.data_generator)

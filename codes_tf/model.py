@@ -144,11 +144,9 @@ class TFKGEModel(tf.keras.Model):
             head = tf.expand_dims(head, axis=1)
             return head, head, head
 
-            raise ValueError('mode %s not supported' % mode)
-
-        head, relation, tail = tf.cond(tf.equal(mode, b'single'), lambda: single_mode(),
-                                       lambda: tf.cond(tf.equal(mode, b'head-batch'), lambda: head_batch_mode(),
-                                                       lambda: tf.cond(tf.equal(mode, b'tail-batch'),
+        head, relation, tail = tf.cond(tf.equal(mode, 3), lambda: single_mode(),
+                                       lambda: tf.cond(tf.equal(mode, 0), lambda: head_batch_mode(),
+                                                       lambda: tf.cond(tf.equal(mode, 1),
                                                                        lambda: tail_batch_mode(),
                                                                        lambda: default_mode())))
 

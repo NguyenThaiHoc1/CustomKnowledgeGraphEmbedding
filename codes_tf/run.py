@@ -66,11 +66,11 @@ def run_main():
 
     # train
     train_generator_head = DataGenerator(
-        train_triples, nentity, nrelation, negative_sample_size, 'head-batch'
+        train_triples, nentity, nrelation, negative_sample_size, 0, # 'head-batch'
     )
 
     train_generator_tail = DataGenerator(
-        train_triples, nentity, nrelation, negative_sample_size, 'tail-batch'
+        train_triples, nentity, nrelation, negative_sample_size, 1, # 'tail-batch'
     )
 
     train_dataset_head, train_length_head = DataGenerator2Dataset().convert(data_generator=train_generator_head)
@@ -164,6 +164,9 @@ LR_EXP_DECAY = .8
 
 dataloader, nrelation, nentity = run_main()
 
+for data in dataloader.take(2):
+    print(data)
+
 with strategy.scope():
     kge_model = TFKGEModel(
         model_name=model,
@@ -194,7 +197,7 @@ def train_step(data_iter):
         with tf.GradientTape() as tape:
             negative_score = kge_model(((positive_sample, negative_sample), mode[0]))
             negative_score = tf.reduce_sum(tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1)
-            positive_score = kge_model(((positive_sample, negative_sample ), b'single'))
+            positive_score = kge_model(((positive_sample, negative_sample ), 3))
             positive_score = tf.squeeze(tf.math.log_sigmoid(positive_score), axis=1)
             positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
                 subsampling_weight)
@@ -206,7 +209,7 @@ def train_step(data_iter):
         optimizer.apply_gradients(zip(grads, kge_model.trainable_variables))
 
         # update metrics
-        train_loss.update_state(loss)
+        # train_loss.update_state(loss)
 
     # this loop runs on the TPU
     for _ in tf.range(STEPS_PER_TPU_CALL):
@@ -243,19 +246,19 @@ while True:
     print('=', end='', flush=True)
 
     # compute metrics
-    history.history['loss'].append(train_loss.result().numpy() / (BATCH_SIZE * epoch_steps))
+    # history.history['loss'].append(train_loss.result().numpy() / (BATCH_SIZE * epoch_steps))
 
     # report metrics
     epoch_time = time.time() - epoch_start_time
     print('\nEPOCH {:d}/{:d}'.format(epoch + 1, EPOCHS))
     print('time: {:0.1f}s'.format(epoch_time),
-          'loss: {:0.4f}'.format(history.history['loss'][-1]),
-          'lr: {:0.4g}'.format(lrfn(epoch)), flush=True)
+          # 'loss: {:0.4f}'.format(history.history['loss'][-1]),
+          flush=True)
 
     epoch = step // STEPS_PER_EPOCH
     epoch_steps = 0
     epoch_start_time = time.time()
-    train_loss.reset_states()
+    # train_loss.reset_states()
     if epoch >= EPOCHS:
         break
 
