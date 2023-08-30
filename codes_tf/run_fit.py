@@ -169,32 +169,32 @@ VALIDATION_STEPS_PER_TPU_CALL = 29
 dataloader, nrelation, nentity = run_main()
 train_dist_ds = strategy.experimental_distribute_dataset(dataloader)
 
-# with strategy.scope():
-#     kge_model = TFKGEModel(
-#         model_name=model,
-#         nentity=nentity,
-#         nrelation=nrelation,
-#         hidden_dim=hidden_dim,
-#         gamma=gamma,
-#         double_entity_embedding=double_entity_embedding,
-#         double_relation_embedding=double_relation_embedding,
-#         triple_relation_embedding=triple_relation_embedding
-#     )
-#
-#
-#     class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-#         def __call__(self, step):
-#             return lrfn(epoch=step // STEPS_PER_EPOCH)
-#
-#
-#     optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
-#
-#     kge_model.compile(optimizer=optimizer,
-#                       loss=None,
-#                       metrics=None)
-#
-#     kge_model.fit(
-#         train_dist_ds,
-#         steps_per_epoch=STEPS_PER_EPOCH,
-#         epochs=EPOCHS
-#     )
+with strategy.scope():
+    kge_model = TFKGEModel(
+        model_name=model,
+        nentity=nentity,
+        nrelation=nrelation,
+        hidden_dim=hidden_dim,
+        gamma=gamma,
+        double_entity_embedding=double_entity_embedding,
+        double_relation_embedding=double_relation_embedding,
+        triple_relation_embedding=triple_relation_embedding
+    )
+
+
+    class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+        def __call__(self, step):
+            return lrfn(epoch=step // STEPS_PER_EPOCH)
+
+
+    optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
+
+    kge_model.compile(optimizer=optimizer,
+                      loss=None,
+                      metrics=None)
+
+    kge_model.fit(
+        train_dist_ds,
+        steps_per_epoch=STEPS_PER_EPOCH,
+        epochs=EPOCHS
+    )
