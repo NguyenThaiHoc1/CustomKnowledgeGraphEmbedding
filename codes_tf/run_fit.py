@@ -94,9 +94,9 @@ def run_main():
     # )
 
     combined_dataset = train_dataloader_head
-    combined_dataset = combined_dataset.repeat()  # the training dataset must repeat for several epochs
     combined_dataset = combined_dataset.shuffle(2048)
     combined_dataset = combined_dataset.batch(BATCH_SIZE, drop_remainder=True)  # slighly faster with fixed tensor sizes
+    combined_dataset = combined_dataset.repeat()  # the training dataset must repeat for several epochs
     combined_dataset = combined_dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
     return combined_dataset, nrelation, nentity
@@ -165,7 +165,7 @@ STEPS_PER_TPU_CALL = 99
 VALIDATION_STEPS_PER_TPU_CALL = 29
 
 dataloader, nrelation, nentity = run_main()
-train_dist_ds = strategy.experimental_distribute_dataset(dataloader)
+train_dist_ds = dataloader # strategy.experimental_distribute_dataset()
 
 with strategy.scope():
     kge_model = TFKGEModel(
