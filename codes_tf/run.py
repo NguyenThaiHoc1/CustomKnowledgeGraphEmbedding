@@ -67,11 +67,11 @@ def run_main():
 
     # train
     train_generator_head = DataGenerator(
-        train_triples, nentity, nrelation, negative_sample_size, 0, # 'head-batch'
+        train_triples, nentity, nrelation, negative_sample_size, 0,  # 'head-batch'
     )
 
     train_generator_tail = DataGenerator(
-        train_triples, nentity, nrelation, negative_sample_size, 1, # 'tail-batch'
+        train_triples, nentity, nrelation, negative_sample_size, 1,  # 'tail-batch'
     )
 
     train_dataset_head, train_length_head = DataGenerator2Dataset().convert(data_generator=train_generator_head)
@@ -164,8 +164,7 @@ LR_SUSTAIN_EPOCHS = 0.0
 LR_EXP_DECAY = .8
 
 dataloader, nrelation, nentity = run_main()
-train_dist_ds = dataloader # strategy.experimental_distribute_dataset()
-
+train_dist_ds = dataloader  # strategy.experimental_distribute_dataset()
 
 with strategy.scope():
     kge_model = TFKGEModel(
@@ -191,13 +190,15 @@ with strategy.scope():
 STEPS_PER_TPU_CALL = 99
 VALIDATION_STEPS_PER_TPU_CALL = 29
 
+
 @tf.function
 def train_step(data_iter):
     def train_step_fn(positive_sample, negative_sample, subsampling_weight, mode):
         with tf.GradientTape() as tape:
             negative_score = kge_model(((positive_sample, negative_sample), mode[0]))
-            negative_score = tf.reduce_sum(tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1)
-            positive_score = kge_model(((positive_sample, negative_sample ), 3))
+            negative_score = tf.reduce_sum(
+                tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1)
+            positive_score = kge_model(((positive_sample, negative_sample), 3))
             positive_score = tf.squeeze(tf.math.log_sigmoid(positive_score), axis=1)
             positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
                 subsampling_weight)
