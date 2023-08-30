@@ -66,11 +66,11 @@ def run_main():
 
     # train
     train_generator_head = DataGenerator(
-        train_triples, nentity, nrelation, negative_sample_size, 0, # 'head-batch'
+        train_triples, nentity, nrelation, negative_sample_size, 0,  # 'head-batch'
     )
 
     train_generator_tail = DataGenerator(
-        train_triples, nentity, nrelation, negative_sample_size, 1, # 'tail-batch'
+        train_triples, nentity, nrelation, negative_sample_size, 1,  # 'tail-batch'
     )
 
     train_dataset_head, train_length_head = DataGenerator2Dataset().convert(data_generator=train_generator_head)
@@ -187,11 +187,11 @@ with strategy.scope():
 
     optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
 
-    model.compile(optimizer=optimizer,
-                  loss=None,
-                  metrics=None)
+    kge_model.compile(optimizer=optimizer,
+                      loss=None,
+                      metrics=None)
 
-    model.fit(
+    kge_model.fit(
         train_dist_ds,
         steps_per_epoch=STEPS_PER_EPOCH,
         epochs=EPOCHS

@@ -91,7 +91,7 @@ class TFKGEModel(tf.keras.Model):
         initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
         self.relation_embedding.assign(initializer(self.relation_embedding.shape))
 
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-5)
+        # self.optimizer = tf.keras.optimizers.Adam(learning_rate=1e-5)
 
     def call(self, sample, training=True, **kwargs):
         sample, mode = sample
