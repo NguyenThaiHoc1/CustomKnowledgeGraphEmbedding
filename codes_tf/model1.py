@@ -148,9 +148,9 @@ class TFKGEModel(tf.keras.Model):
 
             raise ValueError('mode %s not supported' % mode)
 
-        head, relation, tail = tf.cond(tf.equal(mode, b'single'), lambda: single_mode(),
-                                       lambda: tf.cond(tf.equal(mode, b'head-batch'), lambda: head_batch_mode(),
-                                                       lambda: tf.cond(tf.equal(mode, b'tail-batch'),
+        head, relation, tail = tf.cond(tf.equal(mode, 3), lambda: single_mode(),
+                                       lambda: tf.cond(tf.equal(mode, 0), lambda: head_batch_mode(),
+                                                       lambda: tf.cond(tf.equal(mode, 1),
                                                                        lambda: tail_batch_mode(),
                                                                        lambda: default_mode())))
 
@@ -191,7 +191,7 @@ class TFKGEModel(tf.keras.Model):
             negative_score = self(((positive_sample, negative_sample), mode[0]), training=True)
             negative_score = tf.reduce_sum(
                 tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1)
-            positive_score = self(((positive_sample, negative_sample), b'single'))
+            positive_score = self(((positive_sample, negative_sample), 3))
             positive_score = tf.squeeze(tf.math.log_sigmoid(positive_score), axis=1)
             positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
                 subsampling_weight)

@@ -66,11 +66,11 @@ def run_main():
 
     # train
     train_generator_head = DataGenerator(
-        train_triples, nentity, nrelation, negative_sample_size, 'head-batch'
+        train_triples, nentity, nrelation, negative_sample_size, 0, # 'head-batch'
     )
 
     train_generator_tail = DataGenerator(
-        train_triples, nentity, nrelation, negative_sample_size, 'tail-batch'
+        train_triples, nentity, nrelation, negative_sample_size, 1, # 'tail-batch'
     )
 
     train_dataset_head, train_length_head = DataGenerator2Dataset().convert(data_generator=train_generator_head)

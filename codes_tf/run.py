@@ -12,6 +12,7 @@ from collections import namedtuple
 
 EPOCHS = 10
 data_path = "data/wn18rr"
+# data_path = "D:\hoc-nt\FJS\KGE\CustomKnowledgeGraphEmbedding\data\wn18rr"
 model = "InterHT"
 hidden_dim = 1000
 gamma = 24.0
@@ -164,8 +165,6 @@ LR_EXP_DECAY = .8
 
 dataloader, nrelation, nentity = run_main()
 
-for data in dataloader.take(2):
-    print(data)
 
 with strategy.scope():
     kge_model = TFKGEModel(
