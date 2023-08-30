@@ -75,13 +75,13 @@ def run_main():
     )
 
     train_dataset_head, train_length_head = DataGenerator2Dataset().convert(data_generator=train_generator_head)
-    train_dataset_tail, train_length_tail = DataGenerator2Dataset().convert(data_generator=train_generator_tail)
-
-    train_dataloader_head = DataLoader(train_dataset_head).gen_dataset(
-        batch_size=16, is_training=True, shuffle=True,
-        input_pipeline_context=None, preprocess=None,
-        drop_remainder=False
-    )
+    # train_dataset_tail, train_length_tail = DataGenerator2Dataset().convert(data_generator=train_generator_tail)
+    #
+    # train_dataloader_head = DataLoader(train_dataset_head).gen_dataset(
+    #     batch_size=16, is_training=True, shuffle=True,
+    #     input_pipeline_context=None, preprocess=None,
+    #     drop_remainder=False
+    # )
 
     # train_dataloader_tail = DataLoader(train_dataset_tail).gen_dataset(
     #     batch_size=16, is_training=True, shuffle=True,
@@ -94,7 +94,7 @@ def run_main():
     #     weights=[0.5, 0.5]
     # )
 
-    combined_dataset = train_dataloader_head
+    combined_dataset = train_dataset_head
     combined_dataset = combined_dataset.repeat()  # the training dataset must repeat for several epochs
     combined_dataset = combined_dataset.shuffle(2048)
     combined_dataset = combined_dataset.batch(BATCH_SIZE, drop_remainder=True)  # slighly faster with fixed tensor sizes
@@ -164,6 +164,7 @@ LR_SUSTAIN_EPOCHS = 0.0
 LR_EXP_DECAY = .8
 
 dataloader, nrelation, nentity = run_main()
+train_dist_ds = dataloader # strategy.experimental_distribute_dataset()
 
 
 with strategy.scope():
@@ -217,7 +218,6 @@ def train_step(data_iter):
 
 # training
 start_time = epoch_start_time = time.time()
-train_dist_ds = strategy.experimental_distribute_dataset(dataloader)
 
 print("Training steps per epoch:", STEPS_PER_EPOCH, "in increments of", STEPS_PER_TPU_CALL)
 
