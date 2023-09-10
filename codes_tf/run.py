@@ -75,26 +75,25 @@ def run_main():
     )
 
     train_dataset_head, train_length_head = DataGenerator2Dataset().convert(data_generator=train_generator_head)
-    # train_dataset_tail, train_length_tail = DataGenerator2Dataset().convert(data_generator=train_generator_tail)
-    #
-    # train_dataloader_head = DataLoader(train_dataset_head).gen_dataset(
-    #     batch_size=16, is_training=True, shuffle=True,
-    #     input_pipeline_context=None, preprocess=None,
-    #     drop_remainder=False
-    # )
+    train_dataset_tail, train_length_tail = DataGenerator2Dataset().convert(data_generator=train_generator_tail)
 
-    # train_dataloader_tail = DataLoader(train_dataset_tail).gen_dataset(
-    #     batch_size=16, is_training=True, shuffle=True,
-    #     input_pipeline_context=None, preprocess=None,
-    #     drop_remainder=False
-    # )
+    train_dataloader_head = DataLoader(train_dataset_head).gen_dataset(
+        batch_size=16, is_training=True, shuffle=True,
+        input_pipeline_context=None, preprocess=None,
+        drop_remainder=False
+    )
 
-    # combined_dataset = tf.data.Dataset.sample_from_datasets(
-    #     [train_dataloader_head, train_dataloader_tail],
-    #     weights=[0.5, 0.5]
-    # )
+    train_dataloader_tail = DataLoader(train_dataset_tail).gen_dataset(
+        batch_size=16, is_training=True, shuffle=True,
+        input_pipeline_context=None, preprocess=None,
+        drop_remainder=False
+    )
 
-    combined_dataset = train_dataset_head
+    combined_dataset = tf.data.Dataset.sample_from_datasets(
+        [train_dataloader_head, train_dataloader_tail],
+        weights=[0.5, 0.5]
+    )
+
     combined_dataset = combined_dataset.repeat()  # the training dataset must repeat for several epochs
     combined_dataset = combined_dataset.shuffle(2048)
     combined_dataset = combined_dataset.batch(BATCH_SIZE, drop_remainder=True)  # slighly faster with fixed tensor sizes
@@ -196,8 +195,7 @@ def train_step(data_iter):
     def train_step_fn(positive_sample, negative_sample, subsampling_weight, mode):
         with tf.GradientTape() as tape:
             negative_score = kge_model(((positive_sample, negative_sample), mode[0]))
-            negative_score = tf.reduce_sum(
-                tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1)
+            negative_score = tf.reduce_sum(tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1)
             positive_score = kge_model(((positive_sample, negative_sample), 3))
             positive_score = tf.squeeze(tf.math.log_sigmoid(positive_score), axis=1)
             positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
@@ -213,8 +211,8 @@ def train_step(data_iter):
         # train_loss.update_state(loss)
 
     # this loop runs on the TPU
-    for _ in tf.range(STEPS_PER_TPU_CALL):
-        strategy.run(train_step_fn, next(data_iter))
+    # for _ in tf.range(STEPS_PER_TPU_CALL):
+    strategy.run(train_step_fn, next(data_iter))
 
 
 # training

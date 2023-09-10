@@ -56,8 +56,8 @@ class DataLoader(object):
                     buffer_size = min(self._size, buffer_size)
                 dataset = dataset.shuffle(buffer_size=buffer_size)
 
-        # dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-        # dataset = dataset.prefetch(tf.data.AUTOTUNE)
+        dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+        dataset = dataset.prefetch(tf.data.AUTOTUNE)
         return dataset
 
     def __len__(self):
@@ -168,11 +168,11 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         negative_sample = np.concatenate(negative_sample_list)[:self.negative_sample_size]
 
-        negative_sample = tf.convert_to_tensor(negative_sample)
+        negative_sample = tf.convert_to_tensor(negative_sample, dtype=tf.int32)
 
-        positive_sample = tf.convert_to_tensor(positive_sample)
+        positive_sample = tf.convert_to_tensor(positive_sample, dtype=tf.int32)
 
-        subsampling_weight = tf.convert_to_tensor(subsampling_weight)
+        subsampling_weight = tf.convert_to_tensor(subsampling_weight, dtype=tf.float32)
 
         return positive_sample, negative_sample, subsampling_weight, self.mode
 

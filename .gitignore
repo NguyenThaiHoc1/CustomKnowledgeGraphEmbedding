@@ -2,3 +2,6 @@ checkpoint
 *.npy
 *.log
 .idea
+codes
+codes_tf/*
+compress_data/split_data

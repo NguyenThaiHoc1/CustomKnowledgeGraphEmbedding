@@ -99,14 +99,17 @@ class TFKGEModel(tf.keras.Model):
         sample, mode = sample
 
         def positive_call():
-            pass
+            positive_score = single_mode()
+            return positive_score
 
         def negative_call():
-            pass
+            head_score = head_batch_mode()
+            tail_score = tail_batch_mode()
+            negative_condition = tf.cond(tf.equal(mode, 0), 1.0, 0.0)
+            return head_score * negative_condition + tail_score * (1 - negative_condition)
 
         def single_mode():
             positive_sample, negative_sample = sample
-            batch_size, negative_sample_size = tf.shape(positive_sample)[0], 1
 
             head = tf.gather(self.entity_embedding, positive_sample[:, 0])
             head = tf.expand_dims(head, axis=1)
@@ -117,7 +120,9 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, positive_sample[:, 2])
             tail = tf.expand_dims(tail, axis=1)
 
-            return head, relation, tail
+            single_score = self.model_func[self.model_name](head, relation, tail, mode)
+            single_score = tf.math.log_sigmoid(single_score)
+            return single_score
 
         def head_batch_mode():
             tail_part, head_part = sample
@@ -132,7 +137,11 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, tail_part[:, 2])
             tail = tf.expand_dims(tail, axis=1)
 
-            return head, relation, tail
+            negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
+            negative_head_score = tf.reduce_sum(
+                tf.nn.softmax(negative_head_score * 1, axis=1) * tf.math.log_sigmoid(-negative_head_score), axis=1
+            )
+            return negative_head_score
 
         def tail_batch_mode():
             head_part, tail_part = sample
@@ -147,20 +156,16 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, tf.reshape(tail_part, [-1]))
             tail = tf.reshape(tail, [batch_size, negative_sample_size, -1])
 
-            return head, relation, tail
+            negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
+            negative_tail_score = tf.reduce_sum(
+                tf.nn.softmax(negative_tail_score * 1, axis=1) * tf.math.log_sigmoid(-negative_tail_score), axis=1
+            )
+            return negative_tail_score
 
-        # head, relation, tail = tf.cond(tf.equal(mode, 3), lambda: single_mode(),
-        #                                lambda: tf.cond(tf.equal(mode, 0), lambda: head_batch_mode(),
-        #                                                lambda: tf.cond(tf.equal(mode, 1),
-        #                                                                lambda: tail_batch_mode(),
-        #                                                                lambda: default_mode())))
-
-        single_mode()
-        if self.model_name in model_func:
-            score = model_func[self.model_name](head, relation, tail, mode)
-        else:
-            raise ValueError('model %s not supported' % self.model_name)
-
+        p_score = positive_call()
+        n_score = negative_call()
+        condition = tf.cond(tf.equal(mode, 3), 1.0, 0.0)
+        score = p_score * condition + n_score * (1 - condition)
         return score
 
     def InterHT(self, head, relation, tail, mode):
