@@ -131,3 +131,4 @@ def run(strategy, args):
 if __name__ == '__main__':
     strategy = check_device()
     args = args_parser()
+    run(strategy, args)

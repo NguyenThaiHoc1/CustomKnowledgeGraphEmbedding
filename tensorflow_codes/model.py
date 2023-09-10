@@ -105,7 +105,7 @@ class TFKGEModel(tf.keras.Model):
         def negative_call():
             head_score = head_batch_mode()
             tail_score = tail_batch_mode()
-            negative_condition = tf.cond(tf.equal(mode, 0), 1.0, 0.0)
+            negative_condition = tf.cond(tf.equal(mode, 0), lambda: 1.0, lambda: 0.0)
             return head_score * negative_condition + tail_score * (1 - negative_condition)
 
         def single_mode():
@@ -164,7 +164,7 @@ class TFKGEModel(tf.keras.Model):
 
         p_score = positive_call()
         n_score = negative_call()
-        condition = tf.cond(tf.equal(mode, 3), 1.0, 0.0)
+        condition = tf.cond(tf.equal(mode, 3), lambda: 1.0, lambda: 0.0)
         score = p_score * condition + n_score * (1 - condition)
         return score
 
