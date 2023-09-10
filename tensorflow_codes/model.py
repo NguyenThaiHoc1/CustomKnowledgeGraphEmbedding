@@ -139,7 +139,8 @@ class TFKGEModel(tf.keras.Model):
 
             negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
             negative_head_score = tf.reduce_sum(
-                tf.nn.softmax(negative_head_score * 1, axis=1) * tf.math.log_sigmoid(-negative_head_score), axis=1
+                tf.nn.softmax(negative_head_score * 1, axis=1) * tf.math.log_sigmoid(-negative_head_score), axis=1,
+                keepdims=True
             )
             return negative_head_score
 
@@ -158,7 +159,8 @@ class TFKGEModel(tf.keras.Model):
 
             negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
             negative_tail_score = tf.reduce_sum(
-                tf.nn.softmax(negative_tail_score * 1, axis=1) * tf.math.log_sigmoid(-negative_tail_score), axis=1
+                tf.nn.softmax(negative_tail_score * 1, axis=1) * tf.math.log_sigmoid(-negative_tail_score), axis=1,
+                keepdims=True
             )
             return negative_tail_score
 
