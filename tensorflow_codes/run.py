@@ -32,6 +32,7 @@ def args_parser():
     parser.add_argument("-de", "--double_entity_embedding", action='store_true')
     parser.add_argument("-dr", "--double_relation_embedding", action='store_true')
     parser.add_argument("-tr", "--triple_relation_embedding", action='store_true')
+    parser.add_argument("--multiple_files", action='store_true')
 
     args = parser.parse_args()
     return args
@@ -87,14 +88,12 @@ def lrfn(epoch):
 def run(strategy, args):
     # reading data ...
 
-    if os.path.isfile(args.input_path):
-        print(f"{args.input_path} is a file")
+    if args.multiple_files:
         filenames = args.input_path
-    elif os.path.isdir(args.input_path):
-        print(f"{args.input_path} is a directory")
-        filenames = tf.io.gfile.glob(os.path.join(args.input_path, "*.tfrec"))
+        print(f"{args.input_path} is a file")
     else:
-        raise ValueError(f"{args.input_path} is neither a file nor a directory")
+        filenames = tf.io.gfile.glob(os.path.join(args.input_path, "*.tfrec"))
+        print(f"List files: \n {filenames}")
 
     raw_dataset = tf.data.TFRecordDataset(filenames)
     parsed_dataset = raw_dataset.map(parse_tfrecord_fn)
