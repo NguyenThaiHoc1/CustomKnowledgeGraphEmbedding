@@ -120,7 +120,7 @@ def run(strategy, args):
         optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
 
         # metrics
-        training_loss = tf.keras.metrics.Sum('training_loss', dtype=tf.float32)
+        training_loss = tf.keras.metrics.Mean('training_loss', dtype=tf.float32)
 
         # supervisor
         trainer = Trainer(

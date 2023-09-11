@@ -95,20 +95,11 @@ class TFKGEModel(tf.keras.Model):
             'InterHT': self.InterHT
         }
 
-    def call(self, sample, training=True, **kwargs):
+    def positive_call(self, sample):
+
         sample, mode = sample
 
-        def positive_call():
-            positive_score = single_mode()
-            return positive_score
-
-        def negative_call():
-            head_score = head_batch_mode()
-            tail_score = tail_batch_mode()
-            negative_condition = tf.cond(tf.equal(mode, 0), lambda: 1.0, lambda: 0.0)
-            return head_score * negative_condition + tail_score * (1 - negative_condition)
-
-        def single_mode():
+        def single_mode(sample, mode):
             positive_sample, negative_sample = sample
 
             head = tf.gather(self.entity_embedding, positive_sample[:, 0])
@@ -124,7 +115,13 @@ class TFKGEModel(tf.keras.Model):
             single_score = tf.math.log_sigmoid(single_score)
             return single_score
 
-        def head_batch_mode():
+        positive_score = single_mode(sample, mode)
+        return positive_score
+
+    def negative_call(self, sample):
+        sample, mode = sample
+
+        def head_batch_mode(sample, mode):
             tail_part, head_part = sample
             batch_size, negative_sample_size = tf.shape(head_part)[0], tf.shape(head_part)[1]
 
@@ -144,7 +141,7 @@ class TFKGEModel(tf.keras.Model):
             )
             return negative_head_score
 
-        def tail_batch_mode():
+        def tail_batch_mode(sample, mode):
             head_part, tail_part = sample
             batch_size, negative_sample_size = tf.shape(tail_part)[0], tf.shape(tail_part)[1]
 
@@ -164,11 +161,18 @@ class TFKGEModel(tf.keras.Model):
             )
             return negative_tail_score
 
-        p_score = positive_call()
-        n_score = negative_call()
-        condition = tf.cond(tf.equal(mode, 3), lambda: 1.0, lambda: 0.0)
-        score = p_score * condition + n_score * (1 - condition)
-        return score
+        head_score = head_batch_mode(sample, mode)
+        tail_score = tail_batch_mode(sample, mode)
+        negative_condition = tf.cond(tf.equal(mode, 0), lambda: 1.0, lambda: 0.0)
+        return head_score * negative_condition + tail_score * (1 - negative_condition)
+
+    # def call(self, sample, training=True, **kwargs):
+    #     sample, mode = sample
+    #
+    #
+    #     condition = tf.cond(tf.equal(mode, 3), lambda: 1.0, lambda: 0.0)
+    #     score = p_score * condition + n_score * (1 - condition)
+    #     return score
 
     def InterHT(self, head, relation, tail, mode):
         a_head, b_head = tf.split(head, num_or_size_splits=2, axis=2)

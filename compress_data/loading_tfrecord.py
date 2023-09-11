@@ -31,7 +31,7 @@ def reshape_function(example, batch_size):
     return postive_sample, negative_sample, subsampling_weight, mode
 
 
-folder_path = './split_data/wn18rr'
+folder_path = 'split_data/wn18rr_512'
 
 file_list = os.listdir(folder_path)
 
@@ -42,7 +42,7 @@ print(
 )
 raw_dataset = tf.data.TFRecordDataset(tfrec_files)
 parsed_dataset = raw_dataset.map(parse_tfrecord_fn)
-parsed_dataset = parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=1024))
+parsed_dataset = parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=512))
 
 count_split = 0
 for features in parsed_dataset:
