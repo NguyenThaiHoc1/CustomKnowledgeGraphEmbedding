@@ -95,8 +95,7 @@ class TFKGEModel(tf.keras.Model):
             'InterHT': self.InterHT
         }
 
-    def positive_call(self, sample):
-
+    def positive_call(self, sample, training=True, **kwargs):
         sample, mode = sample
 
         def single_mode(sample, mode):
@@ -118,7 +117,7 @@ class TFKGEModel(tf.keras.Model):
         positive_score = single_mode(sample, mode)
         return positive_score
 
-    def negative_call(self, sample):
+    def negative_call(self, sample, training=True, **kwargs):
         sample, mode = sample
 
         def head_batch_mode(sample, mode):
@@ -166,13 +165,18 @@ class TFKGEModel(tf.keras.Model):
         negative_condition = tf.cond(tf.equal(mode, 0), lambda: 1.0, lambda: 0.0)
         return head_score * negative_condition + tail_score * (1 - negative_condition)
 
-    # def call(self, sample, training=True, **kwargs):
-    #     sample, mode = sample
-    #
-    #
-    #     condition = tf.cond(tf.equal(mode, 3), lambda: 1.0, lambda: 0.0)
-    #     score = p_score * condition + n_score * (1 - condition)
-    #     return score
+    def call(self, sample, training=True, **kwargs):
+        sample, mode = sample
+
+        if tf.equal(mode, 3):
+            score = self.positive_call((sample, mode))
+        else:
+            score = self.negative_call((sample, mode))
+
+        # condition = tf.cond(tf.equal(mode, 3), lambda: 1.0, lambda: 0.0)
+        # score = p_score * condition + n_score * (1 - condition)
+
+        return score
 
     def InterHT(self, head, relation, tail, mode):
         a_head, b_head = tf.split(head, num_or_size_splits=2, axis=2)
