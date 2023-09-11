@@ -45,10 +45,10 @@ parsed_dataset = raw_dataset.map(parse_tfrecord_fn)
 parsed_dataset = parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=512))
 
 count_split = 0
-for features in parsed_dataset:
+for features in parsed_dataset.take(1):
     data = features
     a, b, c, d = data
-    # print(a.shape, b.shape, c.shape, d.shape)
+    print(a.shape, b.shape, c.shape, d.shape)
     count_split += 1
 
-print(count_split)
+print(a)

@@ -120,7 +120,12 @@ def run(strategy, args):
         optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
 
         # metrics
-        training_loss = tf.keras.metrics.Mean('training_loss', dtype=tf.float32)
+        list_metrics = {
+            "train_loss": tf.keras.metrics.Mean('training_loss', dtype=tf.float32),
+            "MRR":        tf.keras.metrics.Mean('training_loss', dtype=tf.float32)
+        }
+        # training_loss = tf.keras.metrics.Mean('training_loss', dtype=tf.float32)
+
 
         # supervisor
         trainer = Trainer(
@@ -128,7 +133,7 @@ def run(strategy, args):
             dataloader=parsed_dataset,
             model=kge_model,
             optimizer=optimizer,
-            metrics=training_loss
+            metrics=list_metrics
         )
         trainer.training(
             steps_per_tpu_call=99,
