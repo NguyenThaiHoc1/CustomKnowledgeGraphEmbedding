@@ -10,14 +10,16 @@ class Trainer:
         self.metrics = metrics
         self.strategy = strategy
 
-    @tf.function
+    @tf.function()
     def train_step(self, data_iter):
         def train_step_fn(positive_sample, negative_sample, subsampling_weight, mode):
             with tf.GradientTape() as tape:
-                negative_score = self.model(((positive_sample, negative_sample), mode[0]))
-                positive_score = self.model(((positive_sample, negative_sample), 3))
-                positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(subsampling_weight)
-                negative_sample_loss = -tf.reduce_sum(subsampling_weight * negative_score) / tf.reduce_sum(subsampling_weight)
+                negative_score = self.model.negative_call(((positive_sample, negative_sample), mode[0]))
+                positive_score = self.model.positive_call(((positive_sample, negative_sample), 3))
+                positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
+                    subsampling_weight)
+                negative_sample_loss = -tf.reduce_sum(subsampling_weight * negative_score) / tf.reduce_sum(
+                    subsampling_weight)
                 loss = (positive_sample_loss + negative_sample_loss) / 2
 
             grads = tape.gradient(loss, self.model.trainable_variables)
