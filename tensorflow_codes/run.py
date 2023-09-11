@@ -1,5 +1,5 @@
 import tensorflow as tf
-import time
+import os
 import argparse
 from model import TFKGEModel
 from supervisor import Trainer
@@ -86,7 +86,17 @@ def lrfn(epoch):
 
 def run(strategy, args):
     # reading data ...
-    raw_dataset = tf.data.TFRecordDataset(args.input_path)
+
+    if os.path.isfile(args.input_path):
+        print(f"{args.input_path} is a file")
+        filenames = args.input_path
+    elif os.path.isdir(args.input_path):
+        print(f"{args.input_path} is a directory")
+        filenames = tf.io.gfile.glob(os.path.join(args.input_path, "*.tfrec"))
+    else:
+        raise ValueError(f"{args.input_path} is neither a file nor a directory")
+
+    raw_dataset = tf.data.TFRecordDataset(filenames)
     parsed_dataset = raw_dataset.map(parse_tfrecord_fn)
     parsed_dataset = parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=args.batch_size))
     parsed_dataset = parsed_dataset.repeat()
