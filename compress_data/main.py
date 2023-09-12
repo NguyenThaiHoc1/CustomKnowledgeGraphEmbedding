@@ -6,66 +6,25 @@ from tqdm import tqdm
 
 from compress_data.utils import create_example
 
-from codes_tf.dataloader import DataLoader
-from codes_tf.dataloader import DataGenerator
-from codes_tf.dataloader import DataGenerator2Dataset
+from dataloader import DataLoader
+from dataloader import TrainDataGenerator, TestDataGenerator
+from dataloader import DataGenerator2Dataset, TestDataGenerator2Dataset
+
+from dataloader_raw.regular_data import RegularDataRaw
 
 
-# def parse_tfrecord_fn(example):
-#     feature_description = {
-#         "image": tf.io.FixedLenFeature([], tf.string),
-#         "path": tf.io.FixedLenFeature([], tf.string),
-#         "area": tf.io.FixedLenFeature([], tf.float32),
-#         "bbox": tf.io.VarLenFeature(tf.float32),
-#         "category_id": tf.io.FixedLenFeature([], tf.int64),
-#         "id": tf.io.FixedLenFeature([], tf.int64),
-#         "image_id": tf.io.FixedLenFeature([], tf.int64),
-#     }
-#     example = tf.io.parse_single_example(example, feature_description)
-#     example["image"] = tf.io.decode_jpeg(example["image"], channels=3)
-#     example["bbox"] = tf.sparse.to_dense(example["bbox"])
-#     return example
-
-
-def read_triple(file_path, entity2id, relation2id):
-    triples = []
-    with open(file_path) as fin:
-        for line in fin:
-            h, r, t = line.strip().split('\t')
-            triples.append((entity2id[h], relation2id[r], entity2id[t]))
-    return triples
-
-
-def read_data(data_path):
-    with open(os.path.join(data_path, 'entities.dict')) as fin:
-        entity2id = dict()
-        for line in fin:
-            eid, entity = line.strip().split('\t')
-            entity2id[entity] = int(eid)
-
-    with open(os.path.join(data_path, 'relations.dict')) as fin:
-        relation2id = dict()
-        for line in fin:
-            rid, relation = line.strip().split('\t')
-            relation2id[relation] = int(rid)
-
-    train_triples = read_triple(os.path.join(data_path, 'train.txt'), entity2id, relation2id)
-    valid_triples = read_triple(os.path.join(data_path, 'valid.txt'), entity2id, relation2id)
-    test_triples = read_triple(os.path.join(data_path, 'test.txt'), entity2id, relation2id)
-    return train_triples, valid_triples, test_triples, entity2id, relation2id
-
-
-def create_dataloader(input_dir, negative_sample_size, batch_size):
-    train_triples, valid_triples, test_triples, entity2id, relation2id = read_data(data_path=input_dir)
+def train_create_dataloader(input_dir, negative_sample_size, batch_size):
+    dataraw_regular = RegularDataRaw(input_dir=input_dir)
+    train_triples, valid_triples, test_triples, entity2id, relation2id = dataraw_regular.read()
     nentity = len(entity2id)
     nrelation = len(relation2id)
 
     # train
-    train_generator_head = DataGenerator(
+    train_generator_head = TrainDataGenerator(
         train_triples, nentity, nrelation, negative_sample_size, 0,  # 'head-batch'
     )
 
-    train_generator_tail = DataGenerator(
+    train_generator_tail = TrainDataGenerator(
         train_triples, nentity, nrelation, negative_sample_size, 1,  # 'tail-batch'
     )
 
@@ -92,6 +51,45 @@ def create_dataloader(input_dir, negative_sample_size, batch_size):
     # combined_dataset = combined_dataset.shuffle(2048)
     combined_dataset = combined_dataset.prefetch(tf.data.experimental.AUTOTUNE)
     return combined_dataset, nrelation, nentity
+
+
+def test_create_dataloader(input_dir, batch_size):
+    dataraw_regular = RegularDataRaw(input_dir=input_dir)
+    train_triples, valid_triples, test_triples, entity2id, relation2id = dataraw_regular.read()
+    nentity = len(entity2id)
+    nrelation = len(relation2id)
+
+    all_true_triples = train_triples + valid_triples + test_triples
+
+    test_generator_head = TestDataGenerator(
+        test_triples, all_true_triples, nentity, nrelation, 0
+    )
+
+    test_generator_tail = TestDataGenerator(
+        test_triples, all_true_triples, nentity, nrelation, 1
+    )
+
+    test_dataset_head, test_length_head = TestDataGenerator2Dataset().convert(data_generator=test_generator_head)
+    test_dataset_tail, test_length_tail = TestDataGenerator2Dataset().convert(data_generator=test_generator_tail)
+
+    test_dataloader_head = DataLoader(test_dataset_head).gen_dataset(
+        batch_size=batch_size, is_training=False, shuffle=False,
+        input_pipeline_context=None, preprocess=None,
+        drop_remainder=False
+    )
+
+    test_dataloader_tail = DataLoader(test_dataset_tail).gen_dataset(
+        batch_size=batch_size, is_training=False, shuffle=False,
+        input_pipeline_context=None, preprocess=None,
+        drop_remainder=False
+    )
+
+    test_combined_dataset = tf.data.Dataset.sample_from_datasets(
+        [test_dataloader_head, test_dataloader_tail],
+        weights=[0.5, 0.5]
+    )
+
+    return test_combined_dataset, nrelation, nentity
 
 
 def write_file_tfrecords(
@@ -130,27 +128,35 @@ def get_args():
     parser.add_argument("-odr", "--output_dir", type=str, required=False, help="Output dicrection where return output.")
     parser.add_argument("-bz", "--batch_size", type=int, required=True, help="Batch size which use in batch.")
     parser.add_argument("--negative_sample_size", type=int, default=256)
+    parser.add_argument("--split_number", type=int, default=10)
+    parser.add_argument("--show_information", action='store_true')
+    parser.add_argument("--mode", type=str, required=True, help="Train or Test")
     args = parser.parse_args()
     return args
 
 
 def run(args):
-    split_number = 17
-    print("1. Create Dataloader ...")
-    dataloader, nrelation, nentity = create_dataloader(input_dir=args.input_dir,
-                                                       negative_sample_size=args.negative_sample_size,
-                                                       batch_size=args.batch_size)
+    assert args.mode in ["train", "test"], 'Mode has just only "train" and "test".'
+
+    if args.mode == "train":
+        dataloader, nrelation, nentity = train_create_dataloader(input_dir=args.input_dir,
+                                                                 negative_sample_size=args.negative_sample_size,
+                                                                 batch_size=args.batch_size)
+
+    else:
+        dataloader, nrelation, nentity = test_create_dataloader(input_dir=args.input_dir,
+                                                                batch_size=args.batch_size)
 
     if args.output_dir is not None:
-        print("2. Start writing ...")
-        write_file_tfrecords(dataloader, args.output_dir, args.batch_size, split_number=split_number)
+        write_file_tfrecords(dataloader, args.output_dir, args.batch_size, split_number=args.split_number)
 
-    dataloader_length = len(list(dataloader))
-    print(f"## Information ###########")
-    print(f"Len               :        {dataloader_length}")
-    print(f"Number of sample  :        {dataloader_length * args.batch_size}")
-    print(f"Number of relation:        {nrelation}")
-    print(f"Number of entity  :        {nentity}")
+    if args.show_information:
+        dataloader_length = len(list(dataloader))
+        print(f"## {args.mode} - Information ###########")
+        print(f"Len               :        {dataloader_length}")
+        print(f"Number of sample  :        {dataloader_length * args.batch_size}")
+        print(f"Number of relation:        {nrelation}")
+        print(f"Number of entity  :        {nentity}")
 
 
 if __name__ == '__main__':

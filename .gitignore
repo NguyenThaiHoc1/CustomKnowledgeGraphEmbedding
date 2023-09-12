@@ -3,5 +3,7 @@ checkpoint
 *.log
 .idea
 compress_data/split_data
+compress_data/split_data_test
 codes
 codes_tf
+note

@@ -173,5 +173,4 @@ class TFKGEModel(tf.keras.Model):
 
         score = a_head * b_tail - a_tail * b_head + re_mid
         score = self.gamma - tf.norm(score, ord=1, axis=2)
-        print(f">>> {score.shape}")
         return score

@@ -122,7 +122,7 @@ def run(strategy, args):
         # metrics
         list_metrics = {
             "train_loss": tf.keras.metrics.Mean('training_loss', dtype=tf.float32),
-            "MRR":        tf.keras.metrics.Mean('mrr_evalue', dtype=tf.float32)
+            "MRR":        tf.keras.metrics.Mean('mrr_evaluate', dtype=tf.float32)
         }
         # training_loss = tf.keras.metrics.Mean('training_loss', dtype=tf.float32)
 
