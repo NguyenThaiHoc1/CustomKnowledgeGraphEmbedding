@@ -131,7 +131,10 @@ def run(strategy, args):
         # metrics
         list_metrics = {
             "train_loss": tf.keras.metrics.Mean('training_loss', dtype=tf.float32),
-            "MRR": tf.keras.metrics.Mean('mrr_evaluate', dtype=tf.float32)
+            "MRR": tf.keras.metrics.Mean('mrr_evaluate', dtype=tf.float32),
+            "HITS_AT_1": tf.keras.metrics.Mean('hit1_evaluate', dtype=tf.float32),
+            "HITS_AT_3": tf.keras.metrics.Mean('hit3_evaluate', dtype=tf.float32),
+            "HITS_AT_10": tf.keras.metrics.Mean('hit10_evaluate', dtype=tf.float32)
         }
 
         # supervisor

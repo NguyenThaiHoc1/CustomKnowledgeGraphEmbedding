@@ -54,6 +54,10 @@ class Trainer:
             hits_at_10 = tf.where(true_rankings <= 10, 1.0, 0.0)
 
             self.metrics["MRR"].update_state(mrr)
+            self.metrics["MR"].update_state(mr)
+            self.metrics["HITS_AT_1"].update_state(hits_at_1)
+            self.metrics["HITS_AT_3"].update_state(hits_at_3)
+            self.metrics["HITS_AT_10"].update_state(hits_at_10)
 
         self.strategy.run(test_step_fn, next(data_iter))
 
@@ -83,12 +87,21 @@ class Trainer:
             self.test_step(test_iteration_data)
             print('Test step',
                   'MRR: {:0.4f}'.format(round(float(self.metrics["MRR"].result()), 4)),
+                  'MR: {:0.4f}'.format(round(float(self.metrics["MR"].result()), 4)),
+                  'HITS_AT_1: {:0.4f}'.format(round(float(self.metrics["HITS_AT_1"].result()), 4)),
+                  'HITS_AT_3: {:0.4f}'.format(round(float(self.metrics["HITS_AT_3"].result()), 4)),
+                  'HITS_AT_10: {:0.4f}'.format(round(float(self.metrics["HITS_AT_10"].result()), 4)),
                   flush=True)
 
             epoch = step // steps_per_epoch
             epoch_steps = 0
             epoch_start_time = time.time()
             self.metrics["train_loss"].reset_states()
+            self.metrics["MRR"].reset_states()
+            self.metrics["MR"].reset_states()
+            self.metrics["HITS_AT_1"].reset_states()
+            self.metrics["HITS_AT_3"].reset_states()
+            self.metrics["HITS_AT_10"].reset_states()
             if epoch >= epochs:
                 break
 
