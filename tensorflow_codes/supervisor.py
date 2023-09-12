@@ -14,12 +14,12 @@ class Trainer:
     def train_step(self, data_iter):
         def train_step_fn(positive_sample, negative_sample, subsampling_weight, mode):
             with tf.GradientTape() as tape:
-                negative_score = self.model.negative_call(((positive_sample, negative_sample), mode[0]))
+                negative_score = self.model.negative_call(((positive_sample, negative_sample), mode[0]), training=True)
                 negative_score = tf.reduce_sum(
                     tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1,
                     keepdims=True
                 )
-                positive_score = self.model.positive_call(((positive_sample, negative_sample), 3))
+                positive_score = self.model.positive_call(((positive_sample, negative_sample), 3), training=True)
                 positive_score = tf.math.log_sigmoid(positive_score)
                 positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
                     subsampling_weight)
@@ -33,6 +33,13 @@ class Trainer:
             self.metrics["train_loss"].update_state(loss * self.strategy.num_replicas_in_sync)
 
         self.strategy.run(train_step_fn, next(data_iter))
+
+    # @tf.function()
+    # def test_step(self, data_iter):
+    #     def test_step_fn(positive_sample, negative_sample, filter_bias, mode):
+    #         negative_score = self.model.negative_call(((positive_sample, negative_sample), mode[0]), training=False)
+
+
 
     def training(self, steps_per_tpu_call, epochs, steps_per_epoch):
         step = 0

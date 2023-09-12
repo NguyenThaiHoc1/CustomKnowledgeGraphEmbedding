@@ -149,10 +149,6 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.reshape(tail, [batch_size, negative_sample_size, -1])
 
             negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
-            negative_tail_score = tf.reduce_sum(
-                tf.nn.softmax(negative_tail_score * 1, axis=1) * tf.math.log_sigmoid(-negative_tail_score), axis=1,
-                keepdims=True
-            )
             return negative_tail_score
 
         head_score = head_batch_mode(sample, mode)
@@ -177,4 +173,5 @@ class TFKGEModel(tf.keras.Model):
 
         score = a_head * b_tail - a_tail * b_head + re_mid
         score = self.gamma - tf.norm(score, ord=1, axis=2)
+        print(f">>> {score.shape}")
         return score

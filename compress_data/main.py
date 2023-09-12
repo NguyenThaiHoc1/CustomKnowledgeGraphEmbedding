@@ -104,7 +104,6 @@ def write_file_tfrecords(
     each_sample_per_file = total_sample_dataloader // split_number
     iter_dataloader = iter(dataloader)
     print("3. Prepare ready.")
-    # 1: 170 * 1024 = a | 17: 17 * 10 * 1024 =
     for idx in tqdm(range(split_number)):
         path_output = os.path.join(output_dir, f"{dataset_name}-{idx}.tfrec")
         with tf.io.TFRecordWriter(path_output) as writer:
