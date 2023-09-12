@@ -106,7 +106,7 @@ def run(strategy, args):
     print(f"Test List files: \n {test_filenames}")
     test_raw_dataset = tf.data.TFRecordDataset(test_filenames)
     test_parsed_dataset = test_raw_dataset.map(parse_tfrecord_fn)
-    test_parsed_dataset = test_parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=args.batch_size))
+    test_parsed_dataset = test_parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=4))
     test_parsed_dataset = test_parsed_dataset.repeat()
 
     with strategy.scope():

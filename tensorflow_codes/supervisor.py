@@ -42,6 +42,7 @@ class Trainer:
             score += filter_bias
             argsort = tf.argsort(score, axis=1, direction='DESCENDING')
             positive_arg = tf.cond(tf.equal(mode[0], 0), lambda: positive_sample[:, 0], lambda: positive_sample[:, 2])
+            positive_arg = tf.cast(positive_arg, dtype=tf.int32)
             rankings = tf.where(tf.equal(argsort, tf.expand_dims(positive_arg, axis=-1)))
             true_rankings = rankings[:, -1] + 1
 
