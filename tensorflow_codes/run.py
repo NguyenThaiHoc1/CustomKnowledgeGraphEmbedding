@@ -92,10 +92,10 @@ def run(strategy, args):
     # train
     if args.multiple_files:
         filenames = args.input_path
-        print(f"{args.input_path} is a file")
+        print(f"Test {args.input_path} is a file")
     else:
         filenames = tf.io.gfile.glob(os.path.join(args.input_path, "*.tfrec"))
-        print(f"List files: \n {filenames}")
+        print(f"Train List files: \n {filenames}")
 
     raw_dataset = tf.data.TFRecordDataset(filenames)
     parsed_dataset = raw_dataset.map(parse_tfrecord_fn)
@@ -103,7 +103,7 @@ def run(strategy, args):
     parsed_dataset = parsed_dataset.repeat()
 
     test_filenames = tf.io.gfile.glob(os.path.join(args.test_path, "*.tfrec"))
-    print(f"List files: \n {test_filenames}")
+    print(f"Test List files: \n {test_filenames}")
     test_raw_dataset = tf.data.TFRecordDataset(test_filenames)
     test_parsed_dataset = test_raw_dataset.map(parse_tfrecord_fn)
     test_parsed_dataset = test_parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=args.batch_size))
