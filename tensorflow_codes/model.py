@@ -111,7 +111,6 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.expand_dims(tail, axis=1)
 
             single_score = self.model_func[self.model_name](head, relation, tail, mode)
-            single_score = tf.math.log_sigmoid(single_score)
             return single_score
 
         positive_score = single_mode(sample, mode)
@@ -134,10 +133,6 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.expand_dims(tail, axis=1)
 
             negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
-            negative_head_score = tf.reduce_sum(
-                tf.nn.softmax(negative_head_score * 1, axis=1) * tf.math.log_sigmoid(-negative_head_score), axis=1,
-                keepdims=True
-            )
             return negative_head_score
 
         def tail_batch_mode(sample, mode):
