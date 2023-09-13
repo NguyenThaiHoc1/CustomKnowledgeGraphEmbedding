@@ -10,10 +10,16 @@ from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 import pickle
 
+
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
+sys.path.append('/content/content/CustomKnowledgeGraphEmbedding')
+sys.path.append('/content/KnowledgeGraphEmbedding')
+# sys.path.append(parent)
 from trainer_checker import test_trainer
+from tensorflow_codes.supervisor import getTFTrainer
+from codes.model import getTorchTrainer
 
 input_size = 10
 hidden_size = 20
@@ -111,8 +117,10 @@ y_train_tensor = torch.tensor(y)
 torch_dataset = TensorDataset(torch.tensor(X), torch.tensor(y))
 torch_dataloader = DataLoader(torch_dataset, batch_size=batch_size, shuffle=False)
 
+tf_trainer, tf_dataloader =getTFTrainer() 
+torch_trainer = getTorchTrainer() 
 # Test 
-# test_trainer(tf_model, torch_trainer2, tf_model=tf_model, torch_dataloader=torch_dataloader)
-test_trainer_from_pickle(
-    tf_trainer_path, torch_trainer_path, 
-    tf_dataloader_path=tf_dataloader_path, torch_dataloader_path=torch_dataloader_path)
+test_trainer(tf_trainer, torch_trainer, torch_model=torch_trainer, tf_dataloader=tf_dataloader)
+# test_trainer_from_pickle(
+#     tf_trainer_path, torch_trainer_path, 
+#     tf_dataloader_path=tf_dataloader_path, torch_dataloader_path=torch_dataloader_path)

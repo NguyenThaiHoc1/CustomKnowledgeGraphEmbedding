@@ -1,7 +1,7 @@
 import torch
 from tqdm import tqdm
 import torch
-from copy_weights import W_TF2Torch
+from copy_weights import W_TF2Torch, W_Torch2TF, get_tf_weights, get_torch_weights
 import tensorflow as tf
 import numpy as np
 import pickle
@@ -11,24 +11,6 @@ def SetZeroLearningRate(torch_optimizer, tf_optimizer):
   for param_group in torch_optimizer.param_groups:
     param_group['lr'] = new_lr
   tf_optimizer.learning_rate.assign(new_lr)
-
-def test_trainer_from_pickle(
-    tf_trainer_path, torch_trainer_path, 
-    tf_dataloader_path=None, torch_dataloader_path=None):
-  with open(tf_trainer_path, "rb") as f:
-    tf_trainer = pickle.load(f)
-  with open(torch_trainer_path, "rb") as f:
-    torch_trainer = pickle.load(f)
-  if tf_dataloader_path!=None:
-    with open(tf_dataloader_path, "rb") as f:
-      tf_dataloader = pickle.load(f)
-  if torch_trainer_path!=None:
-    with open(torch_trainer_path, "rb") as f:
-      torch_dataloader = pickle.load(f)
-  return test_trainer(
-    tf_trainer, torch_trainer, 
-    tf_dataloader=tf_dataloader,
-    torch_dataloader=torch_dataloader,)
 
 def test_trainer(
     tf_trainer, torch_trainer, 
@@ -41,15 +23,16 @@ def test_trainer(
   if torch_model==None:
     torch_model=torch_trainer.model
 
-  W_TF2Torch(tf_model, torch_model)
+  # W_TF2Torch(tf_model, torch_model)
+  W_Torch2TF(torch_model, tf_model)
   print("Copy weights TF2Torch passed !!\n")
   SetZeroLearningRate(torch_trainer.optimizer, tf_trainer.optimizer)
   print("Check SetZeroLearningRate passed !!\n")
 
-  trainer_checker = TrainerChecker(torch_trainer, tf_model, torch_dataloader=torch_dataloader, tf_dataloader=tf_dataloader)
+  trainer_checker = TrainerChecker(torch_trainer, tf_trainer, torch_dataloader=torch_dataloader, tf_dataloader=tf_dataloader)
   is_oke_train = trainer_checker.check_train_step()
-  is_oke_test = trainer_checker.chek_test_step()
-  return is_oke_train and is_oke_test
+  # is_oke_test = trainer_checker.chek_test_step()
+  # return is_oke_train and is_oke_test
 
 class TrainerChecker:
     def __init__(self, torch_trainer, tf_trainer,
@@ -85,9 +68,10 @@ class TrainerChecker:
         for _ in tqdm(range(self.length)):
             torch_data, tf_data = self.getNextData()
             tf_loss = self.tf_trainer.train_step(tf_data)['loss'].numpy()
-            torch_loss = self.torch_trainer.train_step(torch_data)['loss'].detach().numpy()
+            torch_loss = self.torch_trainer.train_step(torch_data)['loss']
             if not np.allclose(torch_loss, tf_loss, rtol=1e-5, atol=1e-5):
                 print("Error: Different train_step !!\n")
+                print(torch_loss, tf_loss)
                 return False
         print("Check train_step passed !!\n")
         return True

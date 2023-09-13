@@ -3,41 +3,31 @@ import torch
 import numpy as np
 
 def tf_wrename(w_name):
-    return re.search(r'/(.*?):', w_name).group(1).replace('kernel','weight')
+    return w_name.split(':')[0].replace('kernel','weight').replace('/','.')
 
 ## Get_weights
 def get_torch_weights(model):
-    weights = {}
-    for layer_name, layer in model.named_children():
-        layer_weights = {w_name: np.transpose(weight.detach().numpy())
-                        for w_name, weight in layer._parameters.items()}
-        if layer_weights:
-            weights[layer_name] = layer_weights
-    return weights
+    return {w_name: np.transpose(weight) for w_name, weight in model.state_dict().items()}
 
 def get_tf_weights(model):
-    weights = {}
-    for layer in model.layers:
-        layer_weights = {tf_wrename(w.name): w.numpy() for w in layer.weights}
-        if layer_weights:
-            weights[layer.name] = layer_weights
-    return weights
+    return {tf_wrename(w.name): w.numpy() for w in model.trainable_variables }
 
 ## Set_weights
 def set_torch_weights(model, weights):
-    torch_state_dict = {f"{layer_name}.{w_name}": torch.from_numpy(np.transpose(weight))
-                        for layer_name, layer_weights in weights.items()
-                        for w_name, weight in layer_weights.items()}
-    model.load_state_dict(torch_state_dict, strict=False)
-    # print(f'Moved weight {torch_state_dict.keys()}')
+  torch_state_dict = {w_name: torch.from_numpy(weight) for w_name, weight in weights.items()}
+  model.load_state_dict(torch_state_dict, strict=False)
 
 def set_tf_weights(model, weights):
-    for layer_name, layer_weights in weights.items():
-        layer = model.get_layer(layer_name)
-        list_w_name = [tf_wrename(w.name) for w in layer.weights]
-        list_weight = [layer_weights[w_name] for w_name in list_w_name]
-        layer.set_weights(list_weight)
-        # print(f'Moved weight {list_w_name}')
+  weight_list = [ w.numpy() for w in model.weights ]
+  weight_name_list = [tf_wrename(w.name) for w in model.weights ]
+  for w_name, weight in weights.items():
+    if w_name in weight_name_list:
+      index = weight_name_list.index(w_name)
+      if weights[w_name].shape == weight_list[index].shape:
+        weight_list[index] = weights[w_name]
+      else:
+        weight_list[index] = np.transpose(weights[w_name])
+  model.set_weights(weight_list)
 
 ## W_TF2Torch
 def W_TF2Torch(tf_model, torch_model):
