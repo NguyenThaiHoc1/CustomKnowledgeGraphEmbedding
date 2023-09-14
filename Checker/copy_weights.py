@@ -32,8 +32,10 @@ def set_tf_weights(model, weights):
 ## W_TF2Torch
 def W_TF2Torch(tf_model, torch_model):
     tf_weights = get_tf_weights(tf_model)
+    print(tf_weights.keys())
     set_torch_weights(torch_model, tf_weights)
 
 def W_Torch2TF(torch_model, tf_model):
     torch_weights = get_torch_weights(torch_model)
+    print(torch_weights.keys())
     set_tf_weights(tf_model, torch_weights)
