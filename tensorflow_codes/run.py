@@ -1,5 +1,5 @@
 import tensorflow as tf
-import time
+import os
 import argparse
 from model import TFKGEModel
 from supervisor import Trainer
@@ -21,6 +21,7 @@ def args_parser():
     parser = argparse.ArgumentParser(description="Training ...")
     parser.add_argument("-ip", "--input_path", required=True, type=str)
     parser.add_argument("-bz", "--batch_size", required=True, type=int)
+    parser.add_argument("--test_path", required=False, type=str)
 
     parser.add_argument("-sf", "--score_function", required=True, type=str)
     parser.add_argument("--nentity", required=True, type=int)
@@ -32,6 +33,7 @@ def args_parser():
     parser.add_argument("-de", "--double_entity_embedding", action='store_true')
     parser.add_argument("-dr", "--double_relation_embedding", action='store_true')
     parser.add_argument("-tr", "--triple_relation_embedding", action='store_true')
+    parser.add_argument("--multiple_files", action='store_true')
 
     args = parser.parse_args()
     return args
@@ -86,10 +88,26 @@ def lrfn(epoch):
 
 def run(strategy, args):
     # reading data ...
-    raw_dataset = tf.data.TFRecordDataset(args.input_path)
+
+    # train
+    if args.multiple_files:
+        filenames = args.input_path
+        print(f"Test {args.input_path} is a file")
+    else:
+        filenames = tf.io.gfile.glob(os.path.join(args.input_path, "*.tfrec"))
+        print(f"Train List files: \n {filenames}")
+
+    raw_dataset = tf.data.TFRecordDataset(filenames)
     parsed_dataset = raw_dataset.map(parse_tfrecord_fn)
     parsed_dataset = parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=args.batch_size))
     parsed_dataset = parsed_dataset.repeat()
+
+    test_filenames = tf.io.gfile.glob(os.path.join(args.test_path, "*.tfrec"))
+    print(f"Test List files: \n {test_filenames}")
+    test_raw_dataset = tf.data.TFRecordDataset(test_filenames)
+    test_parsed_dataset = test_raw_dataset.map(parse_tfrecord_fn)
+    test_parsed_dataset = test_parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=4))
+    test_parsed_dataset = test_parsed_dataset.repeat()
 
     with strategy.scope():
         kge_model = TFKGEModel(
@@ -111,15 +129,23 @@ def run(strategy, args):
         optimizer = tf.keras.optimizers.Adam(learning_rate=LRSchedule())
 
         # metrics
-        training_loss = tf.keras.metrics.Sum('training_loss', dtype=tf.float32)
+        list_metrics = {
+            "train_loss": tf.keras.metrics.Mean('training_loss', dtype=tf.float32),
+            "MRR": tf.keras.metrics.Mean('mrr_evaluate', dtype=tf.float32),
+            "MR": tf.keras.metrics.Mean('mr_evaluate', dtype=tf.float32),
+            "HITS_AT_1": tf.keras.metrics.Mean('hit1_evaluate', dtype=tf.float32),
+            "HITS_AT_3": tf.keras.metrics.Mean('hit3_evaluate', dtype=tf.float32),
+            "HITS_AT_10": tf.keras.metrics.Mean('hit10_evaluate', dtype=tf.float32)
+        }
 
         # supervisor
         trainer = Trainer(
             strategy=strategy,
-            dataloader=parsed_dataset,
+            train_dataloader=parsed_dataset,
+            test_dataloader=test_parsed_dataset,
             model=kge_model,
             optimizer=optimizer,
-            metrics=training_loss
+            metrics=list_metrics
         )
         trainer.training(
             steps_per_tpu_call=99,

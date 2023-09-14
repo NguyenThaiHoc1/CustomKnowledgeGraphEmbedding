@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 
 def loss(model,
@@ -56,6 +57,7 @@ class TFKGEModel(tf.keras.Model):
         self.nrelation = nrelation
         self.hidden_dim = hidden_dim
         self.epsilon = 2.0
+        self.pi = tf.constant(np.pi, dtype=tf.float32)
 
         self.gamma = tf.Variable([gamma], trainable=False, dtype=tf.float32)
 
@@ -80,8 +82,8 @@ class TFKGEModel(tf.keras.Model):
         if model_name == 'InterHT':
             self.u = 1
 
-        self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
-        self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
+        self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True, name='entity_embedding')
+        self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True, name='relation_embedding')
 
         initializer_range = (self.gamma.numpy() + self.epsilon) / hidden_dim
         initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
@@ -92,23 +94,14 @@ class TFKGEModel(tf.keras.Model):
         self.relation_embedding.assign(initializer(self.relation_embedding.shape))
 
         self.model_func = {
-            'InterHT': self.InterHT
+            'InterHT': self.InterHT, 
+            'RotatE': self.RotatE, 
         }
 
-    def call(self, sample, training=True, **kwargs):
+    def positive_call(self, sample, training=True, **kwargs):
         sample, mode = sample
 
-        def positive_call():
-            positive_score = single_mode()
-            return positive_score
-
-        def negative_call():
-            head_score = head_batch_mode()
-            tail_score = tail_batch_mode()
-            negative_condition = tf.cond(tf.equal(mode, 0), lambda: 1.0, lambda: 0.0)
-            return head_score * negative_condition + tail_score * (1 - negative_condition)
-
-        def single_mode():
+        def single_mode(sample, mode):
             positive_sample, negative_sample = sample
 
             head = tf.gather(self.entity_embedding, positive_sample[:, 0])
@@ -121,10 +114,15 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.expand_dims(tail, axis=1)
 
             single_score = self.model_func[self.model_name](head, relation, tail, mode)
-            single_score = tf.math.log_sigmoid(single_score)
             return single_score
 
-        def head_batch_mode():
+        positive_score = single_mode(sample, mode)
+        return positive_score
+
+    def negative_call(self, sample, training=True, **kwargs):
+        sample, mode = sample
+
+        def head_batch_mode(sample, mode):
             tail_part, head_part = sample
             batch_size, negative_sample_size = tf.shape(head_part)[0], tf.shape(head_part)[1]
 
@@ -138,13 +136,9 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.expand_dims(tail, axis=1)
 
             negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
-            negative_head_score = tf.reduce_sum(
-                tf.nn.softmax(negative_head_score * 1, axis=1) * tf.math.log_sigmoid(-negative_head_score), axis=1,
-                keepdims=True
-            )
             return negative_head_score
 
-        def tail_batch_mode():
+        def tail_batch_mode(sample, mode):
             head_part, tail_part = sample
             batch_size, negative_sample_size = tf.shape(tail_part)[0], tf.shape(tail_part)[1]
 
@@ -158,16 +152,36 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.reshape(tail, [batch_size, negative_sample_size, -1])
 
             negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
-            negative_tail_score = tf.reduce_sum(
-                tf.nn.softmax(negative_tail_score * 1, axis=1) * tf.math.log_sigmoid(-negative_tail_score), axis=1,
-                keepdims=True
-            )
             return negative_tail_score
 
-        p_score = positive_call()
-        n_score = negative_call()
-        condition = tf.cond(tf.equal(mode, 3), lambda: 1.0, lambda: 0.0)
-        score = p_score * condition + n_score * (1 - condition)
+        head_score = head_batch_mode(sample, mode)
+        tail_score = tail_batch_mode(sample, mode)
+        negative_condition = tf.cond(tf.equal(mode, 0), lambda: 1.0, lambda: 0.0)
+        return head_score * negative_condition + tail_score * (1 - negative_condition)
+
+    def RotatE(self, head, relation, tail, mode):
+        re_head, im_head = tf.split(head, num_or_size_splits=2, axis=2)
+        re_tail, im_tail = tf.split(tail, num_or_size_splits=2, axis=2)
+        # Make phases of relations uniformly distributed in [-pi, pi]
+        phase_relation = relation / (self.embedding_range / self.pi)
+        re_relation = tf.cos(phase_relation)
+        im_relation = tf.sin(phase_relation)
+        def RotatE_head_batch():
+            re_score = re_relation * re_tail + im_relation * im_tail
+            im_score = re_relation * im_tail - im_relation * re_tail
+            re_score = re_score - re_head
+            im_score = im_score - im_head
+            return re_score, im_score
+        def RotatE_tail_batch():
+            re_score = re_head * re_relation - im_head * im_relation
+            im_score = re_head * im_relation + im_head * re_relation
+            re_score = re_score - re_tail
+            im_score = im_score - im_tail
+            return re_score, im_score
+        re_score, im_score = tf.cond(tf.equal(mode, 0), RotatE_head_batch, RotatE_tail_batch)
+        score = tf.stack([re_score, im_score], axis=0)
+        score = tf.norm(score, axis=0)
+        score = self.gamma - tf.reduce_sum(score, axis=2)
         return score
 
     def InterHT(self, head, relation, tail, mode):
