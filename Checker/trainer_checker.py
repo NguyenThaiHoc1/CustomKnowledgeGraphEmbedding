@@ -6,6 +6,7 @@ import tensorflow as tf
 import numpy as np
 import pickle
 from torch.utils.data import Dataset, DataLoader
+import torch.optim as optim
 
 def SetZeroLearningRate(torch_optimizer, tf_optimizer):
   new_lr = 0.
@@ -26,8 +27,15 @@ def test_trainer(
 
   # W_TF2Torch(tf_model, torch_model)
   W_Torch2TF(torch_model, tf_model)
+  # print('get_tf_weights')
+  # print(get_tf_weights(tf_model).keys())
+  # print(get_tf_weights(tf_model)['entity_embedding'])
+  # print('get_torch_weights')
+  # print(get_torch_weights(torch_model)['entity_embedding'])
   print("Copy weights TF2Torch passed !!\n")
   SetZeroLearningRate(torch_trainer.optimizer, tf_trainer.optimizer)
+  torch_trainer.optimizer = optim.Adam(torch_model.parameters(), lr=0.)
+  tf_trainer.optimizer = tf.keras.optimizers.Adam(0.)
   print("Check SetZeroLearningRate passed !!\n")
 
   trainer_checker = TrainerChecker(torch_trainer, tf_trainer, torch_dataloader=torch_dataloader, tf_dataloader=tf_dataloader)
@@ -55,6 +63,7 @@ class TrainerChecker:
         self.batch_size = 1
         self.torch_iter = None
         self.tf_iter = None
+        print('fsdfsdfsdfsdfsdfsdfsdfsdfsdfdfd')
         assert torch_dataloader or tf_dataloader, "Both torch_dataloader and tf_dataloader none?"
         if torch_dataloader:
           self.torch_dataloader = torch_dataloader
@@ -86,6 +95,8 @@ class TrainerChecker:
         self.resetIter()
         for _ in tqdm(range(self.length), total=self.length):
             torch_data, tf_data = next(self.torch_iter), next(self.tf_iter)
+            # print('torch_data', torch_data)
+            # print('tf_data', tf_data)
             tf_loss = self.tf_trainer.train_step(tf_data)['loss'].numpy()
             torch_loss = self.torch_trainer.train_step(torch_data)['loss'].detach().numpy()
             if not np.allclose(torch_loss, tf_loss, rtol=1e-5, atol=1e-5):
