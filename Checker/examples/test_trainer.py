@@ -121,6 +121,3 @@ tf_trainer, tf_dataloader =getTFTrainer()
 torch_trainer = getTorchTrainer() 
 # Test 
 test_trainer(tf_trainer, torch_trainer, torch_model=torch_trainer, tf_dataloader=tf_dataloader)
-# test_trainer_from_pickle(
-#     tf_trainer_path, torch_trainer_path, 
-#     tf_dataloader_path=tf_dataloader_path, torch_dataloader_path=torch_dataloader_path)
