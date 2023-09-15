@@ -34,7 +34,7 @@ class Trainer:
       grads = tape.gradient(loss, self.model.trainable_variables)
       self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
-      self.metrics[0].update_state(loss )
+      self.metrics['loss'].update_state(loss )
       return {m.name: m.result() for m in self.metrics}
 
 
@@ -83,7 +83,7 @@ class Trainer:
             sample = next(iter_data)
             self.test_step(sample)
 
-        return {m.name: m.result() for m in self.metrics}
+        return [ m.result() for m in self.metrics]
     
 
 def parse_tfrecord_fn(example):

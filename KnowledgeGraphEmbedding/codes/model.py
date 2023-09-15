@@ -265,9 +265,9 @@ class KGEModel_torch(nn.Module):
         mode = mode[0]
 
         # if args.cuda:
-        #     positive_sample = positive_sample.cuda()
-        #     negative_sample = negative_sample.cuda()
-        #     subsampling_weight = subsampling_weight.cuda()
+        positive_sample = positive_sample.cuda()
+        negative_sample = negative_sample.cuda()
+        subsampling_weight = subsampling_weight.cuda()
 
         negative_score = self((positive_sample, negative_sample), mode=mode)
 
@@ -327,12 +327,16 @@ class KGEModel_torch(nn.Module):
         self.eval()
         logs = []
         with torch.no_grad():
-          for positive_sample, negative_sample, filter_bias, mode in dataloader:
+          
+          iter_data = iter(dataloader)
+          for _ in range(steps):
+          # for positive_sample, negative_sample, filter_bias, mode in dataloader:
+            positive_sample, negative_sample, filter_bias, mode = next(iter_data)
             mode = mode[0]
             # if args.cuda:
-            #     positive_sample = positive_sample.cuda()
-            #     negative_sample = negative_sample.cuda()
-            #     filter_bias = filter_bias.cuda()
+            positive_sample = positive_sample.cuda()
+            negative_sample = negative_sample.cuda()
+            filter_bias = filter_bias.cuda()
 
             batch_size = positive_sample.size(0)
 
@@ -363,7 +367,6 @@ class KGEModel_torch(nn.Module):
                     'HITS@3': 1.0 if ranking <= 3 else 0.0,
         
                 })
-
 
         metrics = {}
         for metric in logs[0].keys():
