@@ -106,10 +106,11 @@ class TrainerChecker:
         print("Check train_step passed !!\n")
         return True
 
-    def chek_test_step(self, tf_dataloader, torch_dataloader):    
-        # torch_metrics = self.torch_trainer.evaluate(torch_dataloader, steps=self.length)
+    def chek_test_step(self, tf_dataloader, torch_dataloader):  
+        tf_metrics_names = [ metric.name for metric in self.tf_trainer.metrics]
         tf_metrics = self.tf_trainer.evaluate(tf_dataloader, steps=self.length)
-        tf_metrics = dict(zip(self.tf_trainer.metrics_names , tf_metrics))
+        tf_metrics = dict(zip(tf_metrics_names , tf_metrics))
+        torch_metrics = self.torch_trainer.evaluate(torch_dataloader, steps=self.length)
         if self.test_metrics[0] == 'full': # type: ignore
           self.test_metrics = set(torch_metrics.keys()) & set(tf_metrics.keys())
         for metric_name in self.test_metrics:
