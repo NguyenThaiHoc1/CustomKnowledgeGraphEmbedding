@@ -42,29 +42,35 @@ class Trainer:
 
     # @tf.function()
     def test_step(self, sample):
-      positive_sample, negative_sample, filter_bias, mode = sample
+        positive_sample, negative_sample, filter_bias, mode = sample
 
-      score = self.model.negative_call(((positive_sample, negative_sample), mode[0]), training=False)
-      score += filter_bias
-      argsort = tf.argsort(score, axis=1, direction='DESCENDING')
-      positive_arg = tf.cond(tf.equal(mode[0], 0), lambda: positive_sample[:, 0], lambda: positive_sample[:, 2])
-      positive_arg = tf.cast(positive_arg, dtype=tf.int32)
-      rankings = tf.where(tf.equal(argsort, tf.expand_dims(positive_arg, axis=-1)))
-      true_rankings = rankings[:, -1] + 1
+        score = self.model.negative_call(((positive_sample, negative_sample), mode[0]), training=False)
+        score += filter_bias
+        argsort = tf.argsort(score, axis=1, direction='DESCENDING')
+        positive_arg = tf.cond(tf.equal(mode[0], 0), lambda: positive_sample[:, 0], lambda: positive_sample[:, 2])
+        positive_arg = tf.cast(positive_arg, dtype=tf.int32)
+        rankings = tf.where(tf.equal(argsort, tf.expand_dims(positive_arg, axis=-1)))
+        true_rankings = rankings[:, -1] + 1
 
-      # Calculate evaluation metrics
-      mrr = 1.0 / tf.cast(true_rankings, dtype=tf.float32)
-      mr = tf.cast(true_rankings, dtype=tf.float32)
-      hits_at_1 = tf.where(true_rankings <= 1, 1.0, 0.0)
-      hits_at_3 = tf.where(true_rankings <= 3, 1.0, 0.0)
-      hits_at_10 = tf.where(true_rankings <= 10, 1.0, 0.0)
+        # Calculate evaluation metrics
+        mrr = 1.0 / tf.cast(true_rankings, dtype=tf.float32)
+        mr = tf.cast(true_rankings, dtype=tf.float32)
+        hits_at_1 = tf.where(true_rankings <= 1, 1.0, 0.0)
+        hits_at_3 = tf.where(true_rankings <= 3, 1.0, 0.0)
+        hits_at_10 = tf.where(true_rankings <= 10, 1.0, 0.0)
 
-      self.metrics["MRR"].update_state(mrr)
-      self.metrics["MR"].update_state(mr)
-      self.metrics["HITS_AT_1"].update_state(hits_at_1)
-      self.metrics["HITS_AT_3"].update_state(hits_at_3)
-      self.metrics["HITS_AT_10"].update_state(hits_at_10)
-      # return {m.name: m.result() for m in self.metrics}
+        result = {
+        "MRR":mrr,
+        "MR":mr,
+        "HITS_AT_1":hits_at_1,
+        "HITS_AT_3":hits_at_3,
+        "HITS_AT_10":hits_at_10,
+        }
+
+        for metric in self.metrics:
+            if 'loss' in metric.name:
+                continue
+            metric.update_state(result[metric.name])
 
     def evaluate(self, test_dataloader, steps):
         # Reset metrics
@@ -211,11 +217,18 @@ def getTFTrainer():
             double_entity_embedding=True,
         )
     optimizer = tf.keras.optimizers.Adam(0.1)
-    training_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
-
+    # metrics
+    list_metrics = [
+        tf.keras.metrics.Mean('training_loss', dtype=tf.float32),
+        tf.keras.metrics.Mean('MRR', dtype=tf.float32),
+        tf.keras.metrics.Mean('MR', dtype=tf.float32),
+        tf.keras.metrics.Mean('HITS_AT_1', dtype=tf.float32),
+        tf.keras.metrics.Mean('HITS_AT_3', dtype=tf.float32),
+        tf.keras.metrics.Mean('HITS_AT_10', dtype=tf.float32)
+    ]
     trainer = Trainer(
         model=kge_model,
         optimizer=optimizer,
-        metrics=[training_loss]
+        metrics=list_metrics
     )
     return trainer, kge_model, optimizer, parsed_dataset, test_dataset

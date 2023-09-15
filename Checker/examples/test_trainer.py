@@ -19,4 +19,6 @@ test_trainer(
   tf_optimizer, torch_optimizer,
   # tf_train_loader=tf_dataloader,
   tf_test_loader=tf_test_loader,
+  batch_size=4
+
   )
