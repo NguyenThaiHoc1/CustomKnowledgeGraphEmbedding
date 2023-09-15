@@ -34,7 +34,7 @@ class Trainer:
       grads = tape.gradient(loss, self.model.trainable_variables)
       self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
-      self.metrics['loss'].update_state(loss )
+      self.metrics[0].update_state(loss )
       return {m.name: m.result() for m in self.metrics}
 
 
@@ -219,7 +219,7 @@ def getTFTrainer():
     optimizer = tf.keras.optimizers.Adam(0.1)
     # metrics
     list_metrics = [
-        tf.keras.metrics.Mean('training_loss', dtype=tf.float32),
+        tf.keras.metrics.Mean('loss', dtype=tf.float32),
         tf.keras.metrics.Mean('MRR', dtype=tf.float32),
         tf.keras.metrics.Mean('MR', dtype=tf.float32),
         tf.keras.metrics.Mean('HITS_AT_1', dtype=tf.float32),

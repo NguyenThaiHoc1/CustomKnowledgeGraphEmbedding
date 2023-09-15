@@ -30,7 +30,7 @@ class KGEModel_torch(nn.Module):
         self.hidden_dim = hidden_dim
         self.epsilon = 2.0
         # self.model = self
-        self.loss_result = Mean()
+        self.loss_result = Mean(device="cuda" if torch.cuda.is_available() else "cpu")
 
         self.gamma = nn.Parameter(
             torch.Tensor([gamma]), 
@@ -314,7 +314,7 @@ class KGEModel_torch(nn.Module):
             'loss': loss.item()
         }
         result = { metric_name: metric.compute() for metric_name, metric in self.metrics.items()}
-        result['loss'] = self.loss_result.compute()
+        result['loss'] = self.loss_result.compute().cpu()
         return result
         # return log
     

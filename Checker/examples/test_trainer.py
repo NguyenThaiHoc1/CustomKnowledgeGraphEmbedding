@@ -17,8 +17,9 @@ test_trainer(
   tf_trainer, torch_trainer, 
   tf_model, torch_model, 
   tf_optimizer, torch_optimizer,
-  # tf_train_loader=tf_dataloader,
+  tf_train_loader=tf_dataloader,
   tf_test_loader=tf_test_loader,
-  batch_size=1, 
+  batch_size=2,
+  loader_length=10
 
   )
