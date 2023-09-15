@@ -3,7 +3,5 @@ checkpoint
 *.log
 .idea
 compress_data/split_data
-codes
-codes_tf
 Checker/__pycache__
 tensorflow_codes/__pycache__
