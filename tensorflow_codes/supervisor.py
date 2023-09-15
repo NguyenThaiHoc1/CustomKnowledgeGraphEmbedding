@@ -40,31 +40,32 @@ class Trainer:
 
 
 
-    @tf.function()
-    def test_step(self, data_iter):
-        def test_step_fn(positive_sample, negative_sample, filter_bias, mode):
-            score = self.model.negative_call(((positive_sample, negative_sample), mode[0]), training=False)
-            score += filter_bias
-            argsort = tf.argsort(score, axis=1, direction='DESCENDING')
-            positive_arg = tf.cond(tf.equal(mode[0], 0), lambda: positive_sample[:, 0], lambda: positive_sample[:, 2])
-            positive_arg = tf.cast(positive_arg, dtype=tf.int32)
-            rankings = tf.where(tf.equal(argsort, tf.expand_dims(positive_arg, axis=-1)))
-            true_rankings = rankings[:, -1] + 1
+    # @tf.function()
+    def test_step(self, sample):
+      positive_sample, negative_sample, filter_bias, mode = sample
 
-            # Calculate evaluation metrics
-            mrr = 1.0 / tf.cast(true_rankings, dtype=tf.float32)
-            mr = tf.cast(true_rankings, dtype=tf.float32)
-            hits_at_1 = tf.where(true_rankings <= 1, 1.0, 0.0)
-            hits_at_3 = tf.where(true_rankings <= 3, 1.0, 0.0)
-            hits_at_10 = tf.where(true_rankings <= 10, 1.0, 0.0)
+      score = self.model.negative_call(((positive_sample, negative_sample), mode[0]), training=False)
+      score += filter_bias
+      argsort = tf.argsort(score, axis=1, direction='DESCENDING')
+      positive_arg = tf.cond(tf.equal(mode[0], 0), lambda: positive_sample[:, 0], lambda: positive_sample[:, 2])
+      positive_arg = tf.cast(positive_arg, dtype=tf.int32)
+      rankings = tf.where(tf.equal(argsort, tf.expand_dims(positive_arg, axis=-1)))
+      true_rankings = rankings[:, -1] + 1
 
-            self.metrics["MRR"].update_state(mrr)
-            self.metrics["MR"].update_state(mr)
-            self.metrics["HITS_AT_1"].update_state(hits_at_1)
-            self.metrics["HITS_AT_3"].update_state(hits_at_3)
-            self.metrics["HITS_AT_10"].update_state(hits_at_10)
+      # Calculate evaluation metrics
+      mrr = 1.0 / tf.cast(true_rankings, dtype=tf.float32)
+      mr = tf.cast(true_rankings, dtype=tf.float32)
+      hits_at_1 = tf.where(true_rankings <= 1, 1.0, 0.0)
+      hits_at_3 = tf.where(true_rankings <= 3, 1.0, 0.0)
+      hits_at_10 = tf.where(true_rankings <= 10, 1.0, 0.0)
 
-        self.strategy.run(test_step_fn, next(data_iter))
+      self.metrics["MRR"].update_state(mrr)
+      self.metrics["MR"].update_state(mr)
+      self.metrics["HITS_AT_1"].update_state(hits_at_1)
+      self.metrics["HITS_AT_3"].update_state(hits_at_3)
+      self.metrics["HITS_AT_10"].update_state(hits_at_10)
+      # return {m.name: m.result() for m in self.metrics}
+
 
 
 
@@ -100,7 +101,7 @@ def reshape_function(example, batch_size):
 @tf.function
 def lrfn(epoch):
     LR_START = 0.00001
-    LR_MAX = 0.00005 * strategy.num_replicas_in_sync
+    LR_MAX = 0.00005 #* strategy.num_replicas_in_sync
     LR_MIN = 0.00001
     LR_RAMPUP_EPOCHS = 5.0
     LR_SUSTAIN_EPOCHS = 0.0

@@ -1,4 +1,3 @@
-import re
 import torch
 import numpy as np
 
@@ -25,10 +24,10 @@ def set_tf_weights(model, weights):
     if w_name in weight_name_list:
       index = weight_name_list.index(w_name)
       assigned_weights.append(w_name)
-      if weights[w_name].shape == weight_list[index].shape:
-        weight_list[index] = weights[w_name]
+      if weight.shape == weight_list[index].shape:
+        weight_list[index] = weight
       else:
-        weight_list[index] = np.transpose(weights[w_name])
+        weight_list[index] = np.transpose(weight)
   model.set_weights(weight_list)
   return assigned_weights
 
