@@ -44,6 +44,9 @@ def test_trainer(
   is_test = tf_test_loader or torch_test_loader
   W_Torch2TF(torch_model, tf_model)
   print("Copy weights TF2Torch passed !!\n")
+  if torch.cuda.is_available():
+    torch_model = torch_model.to('cuda')
+
   SetZeroLearningRate(torch_optimizer, tf_optimizer)
   print("SetZeroLearningRate passed !!\n")
   # Check dataloader
@@ -116,6 +119,7 @@ class TrainerChecker:
         for metric_name in self.test_metrics:
             if not np.isclose(torch_metrics[metric_name], tf_metrics[metric_name], rtol=1e-3, atol=1e-3):
               print("Error: Different test_step !!\n")
+              print(metric_name, torch_metrics[metric_name], tf_metrics[metric_name])
               return False
         print("\nCheck test_step passed !!\n")
         return True
