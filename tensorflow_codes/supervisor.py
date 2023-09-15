@@ -115,6 +115,53 @@ def lrfn(epoch):
         lr = (LR_MAX - LR_MIN) * LR_EXP_DECAY ** (float(epoch) - LR_RAMPUP_EPOCHS - LR_SUSTAIN_EPOCHS) + LR_MIN
     return lr
 
+new_feature_description = {
+    'positive_sample': tf.io.RaggedFeature(tf.int64),
+    'negative_sample': tf.io.RaggedFeature(tf.int64),
+    'subsampling_weight': tf.io.RaggedFeature(tf.float32),
+    'mode': tf.io.RaggedFeature(tf.int64),
+}
+old_feature_description = {
+    'tensor1': tf.io.RaggedFeature(tf.int64),
+    'tensor2': tf.io.RaggedFeature(tf.int64),
+    'tensor3': tf.io.RaggedFeature(tf.float32),
+    'tensor4': tf.io.RaggedFeature(tf.int64),
+}
+
+def parse_tfrecord_fn_old(example):
+    parsed_example = tf.io.parse_single_example(example, old_feature_description)
+    positive_sample = tf.cast(parsed_example['tensor1'], tf.int32)
+    negative_sample = tf.cast(parsed_example['tensor2'], tf.int32)
+    subsampling_weight = parsed_example['tensor3']
+    mode = tf.cast(parsed_example['tensor4'], tf.int32)
+    return positive_sample, negative_sample, subsampling_weight, mode
+
+def parse_tfrecord_fn2(example):
+    parsed_example = tf.io.parse_single_example(example, new_feature_description)
+    positive_sample = tf.cast(parsed_example['positive_sample'], tf.int32)
+    negative_sample = tf.cast(parsed_example['negative_sample'], tf.int32)
+    subsampling_weight = parsed_example['subsampling_weight']
+    mode = tf.cast(parsed_example['mode'], tf.int32)
+    return positive_sample, negative_sample, subsampling_weight, mode
+
+# default_batch_size = 16
+# def reshape_function(positive_sample, negative_sample, subsampling_weight, mode):
+#     positive_sample = tf.reshape(positive_sample, [-1, 3])
+#     negative_sample = tf.reshape(negative_sample, [-1, 256])
+#     subsampling_weight = tf.reshape(subsampling_weight, [-1, 1])
+#     mode = tf.reshape(mode, [-1, ])
+#     return positive_sample, negative_sample, subsampling_weight, mode
+
+def reshape_function_test(positive_sample, negative_sample, subsampling_weight, mode):
+    positive_sample = tf.reshape(positive_sample, [-1, 3])
+    negative_sample = tf.reshape(negative_sample, [-1, 40943])
+    subsampling_weight = tf.reshape(subsampling_weight, [-1, 40943])
+    mode = tf.reshape(mode, [-1, ])
+    return positive_sample, negative_sample, subsampling_weight, mode
+
+def zzzz(x, y, z, t):
+    return x, y, z, tf.zeros(1, tf.int32)
+
 def getTFTrainer():
     raw_dataset = tf.data.TFRecordDataset('gs://hien7613storage2/datasets/KGE/wn18rr.tfrec')
     # train
@@ -139,6 +186,26 @@ def getTFTrainer():
     # test_parsed_dataset = test_parsed_dataset.repeat()
 
 
+    # Val
+    val_batch_size = 8
+    VAL_STEPS_PER_EPOCH = 3134 // val_batch_size
+    test_head_dataset = tf.data.TFRecordDataset("gs://hien7613storage2/datasets/KGE/wn18rr_test_head.tfrecord")\
+    .map(parse_tfrecord_fn2)\
+    .map(reshape_function_test)\
+    .unbatch()\
+    .batch(val_batch_size, drop_remainder=True,)\
+    .prefetch(tf.data.experimental.AUTOTUNE)
+
+    test_tail_dataset = tf.data.TFRecordDataset("gs://hien7613storage2/datasets/KGE/wn18rr_test_tail.tfrecord")\
+    .map(parse_tfrecord_fn2)\
+    .map(reshape_function_test)\
+    .unbatch()\
+    .batch(val_batch_size, drop_remainder=True,)\
+    .prefetch(tf.data.experimental.AUTOTUNE)
+
+    test_dataset = tf.data.Dataset.sample_from_datasets([test_head_dataset, test_tail_dataset], weights=[0.5, 0.5])\
+    .prefetch(tf.data.experimental.AUTOTUNE)
+
     kge_model = TFKGEModel(
             model_name="RotatE",
             nentity=40943,
@@ -155,4 +222,4 @@ def getTFTrainer():
         optimizer=optimizer,
         metrics=[training_loss]
     )
-    return trainer, kge_model, optimizer, parsed_dataset
+    return trainer, kge_model, optimizer, parsed_dataset, test_dataset
