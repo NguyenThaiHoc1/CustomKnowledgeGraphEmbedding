@@ -66,8 +66,19 @@ class Trainer:
       self.metrics["HITS_AT_10"].update_state(hits_at_10)
       # return {m.name: m.result() for m in self.metrics}
 
+    def evaluate(self, test_dataloader, steps):
+        # Reset metrics
+        for metric in self.metrics:
+            metric.reset_states()
 
+        iter_data = iter(test_dataloader)
+        # for _, sample in enumerate(test_dataloader.take(steps)):
+        for _ in range(steps):
+            sample = next(iter_data)
+            self.test_step(sample)
 
+        return {m.name: m.result() for m in self.metrics}
+    
 
 def parse_tfrecord_fn(example):
     feature_description = {

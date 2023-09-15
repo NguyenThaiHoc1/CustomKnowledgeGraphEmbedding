@@ -107,10 +107,10 @@ class TrainerChecker:
         return True
 
     def chek_test_step(self, tf_dataloader, torch_dataloader):    
-        torch_metrics = self.torch_trainer.evaluate(torch_dataloader, steps=self.length)
+        # torch_metrics = self.torch_trainer.evaluate(torch_dataloader, steps=self.length)
         tf_metrics = self.tf_trainer.evaluate(tf_dataloader, steps=self.length)
         tf_metrics = dict(zip(self.tf_trainer.metrics_names , tf_metrics))
-        if self.test_metrics[0] == 'full':
+        if self.test_metrics[0] == 'full': # type: ignore
           self.test_metrics = set(torch_metrics.keys()) & set(tf_metrics.keys())
         for metric_name in self.test_metrics:
             if not np.isclose(torch_metrics[metric_name], tf_metrics[metric_name], rtol=1e-3, atol=1e-3):

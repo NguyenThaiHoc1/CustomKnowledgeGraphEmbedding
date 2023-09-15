@@ -254,7 +254,6 @@ def main(args):
         )
         
         train_iterator = BidirectionalOneShotIterator(train_dataloader_head, train_dataloader_tail)
-        print(next(train_iterator))
         return
         # Set training configuration
         current_learning_rate = args.learning_rate
