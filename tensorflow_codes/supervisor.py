@@ -30,7 +30,6 @@ class Trainer:
             'negative_sample_loss': negative_sample_loss,
             'loss': loss
           }
-          print(log)
 
       grads = tape.gradient(loss, self.model.trainable_variables)
       self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
@@ -67,52 +66,6 @@ class Trainer:
 
         self.strategy.run(test_step_fn, next(data_iter))
 
-    # def training(self, steps_per_tpu_call, epochs, steps_per_epoch):
-    #     step = 0
-    #     epoch = 0
-    #     epoch_steps = 0
-    #     epoch_start_time = time.time()
-    #     train_iteration_data = iter(self.train_dataloader)
-    #     test_iteration_data = iter(self.test_dataloader)
-
-    #     while True:
-    #         # run training step
-    #         self.train_step(train_iteration_data)
-    #         epoch_steps += steps_per_tpu_call
-    #         step += steps_per_tpu_call
-    #         print('=', end='', flush=True)
-
-    #         # report metrics
-    #         epoch_time = time.time() - epoch_start_time
-    #         print('\nEPOCH {:d}/{:d}'.format(epoch + 1, epochs))
-    #         print('time: {:0.1f}s'.format(epoch_time),
-    #               'loss: {:0.4f}'.format(round(float(self.metrics["train_loss"].result()), 4)),
-    #               flush=True)
-
-    #         # test
-    #         self.test_step(test_iteration_data)
-    #         print('Test step',
-    #               'MRR: {:0.4f}'.format(round(float(self.metrics["MRR"].result()), 4)),
-    #               'MR: {:0.4f}'.format(round(float(self.metrics["MR"].result()), 4)),
-    #               'HITS_AT_1: {:0.4f}'.format(round(float(self.metrics["HITS_AT_1"].result()), 4)),
-    #               'HITS_AT_3: {:0.4f}'.format(round(float(self.metrics["HITS_AT_3"].result()), 4)),
-    #               'HITS_AT_10: {:0.4f}'.format(round(float(self.metrics["HITS_AT_10"].result()), 4)),
-    #               flush=True)
-
-    #         epoch = step // steps_per_epoch
-    #         epoch_steps = 0
-    #         epoch_start_time = time.time()
-    #         self.metrics["train_loss"].reset_states()
-    #         self.metrics["MRR"].reset_states()
-    #         self.metrics["MR"].reset_states()
-    #         self.metrics["HITS_AT_1"].reset_states()
-    #         self.metrics["HITS_AT_3"].reset_states()
-    #         self.metrics["HITS_AT_10"].reset_states()
-    #         if epoch >= epochs:
-    #             break
-
-    #     print("DONE")
-
 
 
 def parse_tfrecord_fn(example):
@@ -143,26 +96,62 @@ def reshape_function(example, batch_size):
 
     return postive_sample, negative_sample, subsampling_weight, mode
 
+
+@tf.function
+def lrfn(epoch):
+    LR_START = 0.00001
+    LR_MAX = 0.00005 * strategy.num_replicas_in_sync
+    LR_MIN = 0.00001
+    LR_RAMPUP_EPOCHS = 5.0
+    LR_SUSTAIN_EPOCHS = 0.0
+    LR_EXP_DECAY = .8
+
+    if float(epoch) < LR_RAMPUP_EPOCHS:
+        lr = (LR_MAX - LR_START) / LR_RAMPUP_EPOCHS * float(epoch) + LR_START
+    elif float(epoch) < LR_RAMPUP_EPOCHS + LR_SUSTAIN_EPOCHS:
+        lr = LR_MAX
+    else:
+        lr = (LR_MAX - LR_MIN) * LR_EXP_DECAY ** (float(epoch) - LR_RAMPUP_EPOCHS - LR_SUSTAIN_EPOCHS) + LR_MIN
+    return lr
+
 def getTFTrainer():
-  raw_dataset = tf.data.TFRecordDataset('gs://hien7613storage2/datasets/KGE/wn18rr.tfrec')
-  parsed_dataset = raw_dataset.map(parse_tfrecord_fn)
-  parsed_dataset = parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=16))
-  parsed_dataset = parsed_dataset
+    raw_dataset = tf.data.TFRecordDataset('gs://hien7613storage2/datasets/KGE/wn18rr.tfrec')
+    # train
+    # if args.multiple_files:
+    #     filenames = args.input_path
+    #     print(f"Test {args.input_path} is a file")
+    # else:
+    #     filenames = tf.io.gfile.glob(os.path.join(args.input_path, "*.tfrec"))
+    #     print(f"Train List files: \n {filenames}")
+    batch_size = 16
+    filenames = "gs://hien7613storage2/datasets/KGE/wn18rr.tfrec"
+    raw_dataset = tf.data.TFRecordDataset(filenames)
+    parsed_dataset = raw_dataset.map(parse_tfrecord_fn)
+    parsed_dataset = parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=batch_size))
+    parsed_dataset = parsed_dataset.repeat()
+    # test_path = 
+    # test_filenames = tf.io.gfile.glob(os.path.join(test_path, "*.tfrec"))
+    # print(f"Test List files: \n {test_filenames}")
+    # test_raw_dataset = tf.data.TFRecordDataset(test_filenames)
+    # test_parsed_dataset = test_raw_dataset.map(parse_tfrecord_fn)
+    # test_parsed_dataset = test_parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=4))
+    # test_parsed_dataset = test_parsed_dataset.repeat()
 
-  kge_model = TFKGEModel(
-          model_name="RotatE",
-          nentity=40943,
-          nrelation=11,
-          hidden_dim=1000,
-          gamma=24.0,
-          double_entity_embedding=True,
-      )
-  optimizer = tf.keras.optimizers.Adam(0.)
-  training_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
 
-  trainer = Trainer(
-      model=kge_model,
-      optimizer=optimizer,
-      metrics=[training_loss]
-  )
-  return trainer, parsed_dataset
+    kge_model = TFKGEModel(
+            model_name="RotatE",
+            nentity=40943,
+            nrelation=11,
+            hidden_dim=1000,
+            gamma=24.0,
+            double_entity_embedding=True,
+        )
+    optimizer = tf.keras.optimizers.Adam(0.1)
+    training_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
+
+    trainer = Trainer(
+        model=kge_model,
+        optimizer=optimizer,
+        metrics=[training_loss]
+    )
+    return trainer, kge_model, optimizer, parsed_dataset
