@@ -77,22 +77,38 @@ class TFKGEModel(tf.keras.Model):
         else:
             self.relation_dim = hidden_dim
 
-        if model_name == 'InterHT':
-            self.u = 1
 
         self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
         self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
+
+
 
         initializer_range = (self.gamma.numpy() + self.epsilon) / hidden_dim
         initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
 
         self.entity_embedding.assign(initializer(self.entity_embedding.shape))
-
-        initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
+        # initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
         self.relation_embedding.assign(initializer(self.relation_embedding.shape))
 
+
+        if model_name == 'InterHT':
+            self.u = 1
+        elif model_name == 'TranSparse':
+            mask_list = []
+            for i in range(nrelation):
+                rate = 0.5
+                threshold = int(rate * 100)
+                prob = tf.random.uniform(shape=[self.relation_dim, self.relation_dim], minval = 1, maxval = 100)
+                mask_list.append(tf.where(prob >= threshold, 1.0, 0.0))
+            self.mask = tf.Variable(tf.stack(mask_list, axis = 0), trainable = False)
+
+            self.W = tf.Variable(tf.zeros([nrelation, self.relation_dim, self.relation_dim]), trainable = True)
+            self.W.assign(initializer(self.W.shape))
+
+
         self.model_func = {
-            'InterHT': self.InterHT
+            'InterHT': self.InterHT,
+            'TranSparse': self.TranSparse,
         }
 
     def call(self, sample, training=True, **kwargs):
@@ -120,7 +136,12 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, positive_sample[:, 2])
             tail = tf.expand_dims(tail, axis=1)
 
-            single_score = self.model_func[self.model_name](head, relation, tail, mode)
+            if self.model_name == 'TranSparse':
+                b_W = tf.gather(self.W, positive_sample[:, 1])
+                b_mask = tf.gather(self.mask, positive_sample[:, 1])
+                single_score = self.model_func[self.model_name](head, relation, tail, mode, b_W, b_mask)
+            elif self.model_name == 'InterHT':
+                single_score = self.model_func[self.model_name](head, relation, tail, mode)
             single_score = tf.math.log_sigmoid(single_score)
             return single_score
 
@@ -137,7 +158,13 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, tail_part[:, 2])
             tail = tf.expand_dims(tail, axis=1)
 
-            negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
+            if self.model_name == 'TranSparse':
+                b_W = tf.gather(self.W, tail_part[:, 1])
+                b_mask = tf.gather(self.mask, tail_part[:, 1])
+                negative_head_score = self.model_func[self.model_name](head, relation, tail, mode, b_W, b_mask)
+            elif self.model_name == 'InterHT':
+                negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
+
             negative_head_score = tf.reduce_sum(
                 tf.nn.softmax(negative_head_score * 1, axis=1) * tf.math.log_sigmoid(-negative_head_score), axis=1,
                 keepdims=True
@@ -157,7 +184,14 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, tf.reshape(tail_part, [-1]))
             tail = tf.reshape(tail, [batch_size, negative_sample_size, -1])
 
-            negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
+            if self.model_name == 'TranSparse':
+                b_W = tf.gather(self.W, head_part[:, 1])
+                b_mask = tf.gather(self.mask, head_part[:, 1])
+                negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode, b_W, b_mask)
+            elif self.model_name == 'InterHT':
+                negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
+
+
             negative_tail_score = tf.reduce_sum(
                 tf.nn.softmax(negative_tail_score * 1, axis=1) * tf.math.log_sigmoid(-negative_tail_score), axis=1,
                 keepdims=True
@@ -186,5 +220,16 @@ class TFKGEModel(tf.keras.Model):
         b_tail = b_tail + self.u * e_t
 
         score = a_head * b_tail - a_tail * b_head + re_mid
+        score = self.gamma - tf.norm(score, ord=1, axis=2)
+        return score
+
+    def TranSparse(self, head, relation, tail, mode, weight, mask):
+        p_head = tf.matmul(head, (mask * weight))
+        p_head = tf.linalg.normalize(p_head, ord=2, axis=-1)[0]
+        p_tail = tf.matmul(head, (mask * weight))
+        p_tail = tf.linalg.normalize(p_tail, ord=2, axis=-1)[0]
+        relation = tf.linalg.normalize(relation, ord=2, axis=-1)[0]
+
+        score = p_head * relation - p_tail
         score = self.gamma - tf.norm(score, ord=1, axis=2)
         return score
