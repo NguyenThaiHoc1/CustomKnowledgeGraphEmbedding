@@ -15,7 +15,7 @@ class Trainer:
     def train_step(self, data_iter):
         def train_step_fn(positive_sample, negative_sample, subsampling_weight, mode):
             with tf.GradientTape() as tape:
-                negative_score = self.model.negative_call(((positive_sample, negative_sample), mode[0]), training=True)
+                negative_score = self.model.negative_call(((positive_sample, negative_sample), mode[0][0]), training=True)
                 negative_score = tf.reduce_sum(
                     tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1,
                     keepdims=True
