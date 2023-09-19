@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+import numpy as np
 
 def loss(model,
          inputs,
@@ -56,29 +56,42 @@ class TFKGEModel(tf.keras.Model):
         self.nrelation = nrelation
         self.hidden_dim = hidden_dim
         self.epsilon = 2.0
+        self.pi = tf.constant(np.pi, dtype=tf.float32)
 
         self.gamma = tf.Variable([gamma], trainable=False, dtype=tf.float32)
 
         self.embedding_range = tf.Variable([(self.gamma.numpy() + self.epsilon) / hidden_dim],
                                            trainable=False, dtype=tf.float32)
+        self.de_model_list = ['TransD', 'RotatE', 'InterHT', 'TranS', 'Rot-Pro', 'RotateCT']
+        self.dr_model_list = ['TransD', 'RotateCT']
+        self.tr_model_list = ['TripleRE', 'TranS']
+        self.qr_model_list = ['Rot-Pro']
 
-        if double_relation_embedding:
-            self.relation_dim = hidden_dim * 2
-        else:
-            self.relation_dim = hidden_dim
+        self.relation_dim = hidden_dim
+        self.entity_dim = hidden_dim
 
-        if double_entity_embedding:
-            self.entity_dim = hidden_dim * 2
-        else:
-            self.entity_dim = hidden_dim
+        if model_name in self.de_model_list:
+            self.entity_dim *= 2
 
-        if triple_relation_embedding:
-            self.relation_dim = hidden_dim * 3
-        else:
-            self.relation_dim = hidden_dim
+        if model_name in self.dr_model_list:
+            self.relation_dim *= 2
+        if model_name in self.tr_model_list:
+            self.relation_dim *= 3
+        if model_name in self.qr_model_list:
+            self.relation_dim *= 4
 
-        if model_name == 'InterHT':
+        if model_name in ['InterHT', 'TranS']:
             self.u = 1
+        if model_name in ['TripleRE']:
+            self.k = tf.sqrt(tf.cast(hidden_dim, tf.float32))
+        if model_name in ['STransE']:
+            self.W1 = tf.Variable(tf.zeros([self.entity_dim, self.entity_dim]), trainable=True)
+            initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
+            self.W1.assign(initializer(self.relation_embedding.shape))    
+
+            self.W2 = tf.Variable(tf.zeros([self.entity_dim, self.entity_dim]), trainable=True)
+            initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
+            self.W2.assign(initializer(self.relation_embedding.shape))
 
         self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
         self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
@@ -92,20 +105,32 @@ class TFKGEModel(tf.keras.Model):
         self.relation_embedding.assign(initializer(self.relation_embedding.shape))
 
         self.model_func = {
+            'DistMult': self.DistMult,
+            'ComplEx': self.ComplEx,
+            'TransE': self.TransE,
+            'TransD': self.TransD,
+            # 'TranSparse': self.TranSparse,
+            'STransE': self.STransE,
+            'TripleRE': self.TripleRE,
             'InterHT': self.InterHT,
+            'TranS': self.TranS,
+            'RotatE': self.RotatE,
+            'Rot-Pro': self.RotPro,
+            'RotateCT': self.RotateCT,
         }
-        if model_name == 'TransD':
-            self.dim_e = dim_e
-            self.dim_r = dim_r
-            self.pnorm = norm # default 2
+        # if model_name == 'TransD':
+        #     self.dim_e = dim_e
+        #     self.dim_r = dim_r
+        #     self.pnorm = norm # default 2
 
-            self.entity_embeddings = tf.keras.layers.Embedding(ent_total, dim_e)
-            self.entity_projection_embeddings = tf.keras.layers.Embedding(ent_total, dim_e)
-            self.relation_embeddings = tf.keras.layers.Embedding(rel_total, dim_r)
-            self.relation_projection_embeddings = tf.keras.layers.Embedding(rel_total, dim_r)
-        if model_name == 'RotateCT':
-             #'soft_margin'
-            self.r_phase = self.create_embedding(self.dim, emb_type="relation", name="r_phase", init_method="uniform", init_params=[-math.pi, math.pi])
+        #     self.entity_embeddings = tf.keras.layers.Embedding(ent_total, dim_e)
+        #     self.entity_projection_embeddings = tf.keras.layers.Embedding(ent_total, dim_e)
+        #     self.relation_embeddings = tf.keras.layers.Embedding(rel_total, dim_r)
+        #     self.relation_projection_embeddings = tf.keras.layers.Embedding(rel_total, dim_r)
+        # if model_name == 'RotateCT':
+        #      #'soft_margin'
+        #     self.r_phase = self.create_embedding(self.dim, emb_type="relation", name="r_phase", init_method="uniform", init_params=[-math.pi, math.pi])
+
         pass
 
     def positive_call(self, sample, training=True, **kwargs):
@@ -189,10 +214,7 @@ class TFKGEModel(tf.keras.Model):
         return score
 
     def DistMult(self, head, relation, tail, mode):
-        if mode == 0:
-            score = head * (relation * tail)
-        else:
-            score = (head * relation) * tail
+        score = head * relation * tail
         score = tf.reduce_sum(score, axis=2)
         return score
 
@@ -200,22 +222,23 @@ class TFKGEModel(tf.keras.Model):
         re_head, im_head = tf.split(head, num_or_size_splits=2, axis=2)
         re_relation, im_relation = tf.split(relation, num_or_size_splits=2, axis=2)
         re_tail, im_tail = tf.split(tail, num_or_size_splits=2, axis=2)
-        if mode == 0:
-            re_score = re_relation * re_tail + im_relation * im_tail
-            im_score = re_relation * im_tail - im_relation * re_tail
-            score = re_head * re_score + im_head * im_score
-        else:
-            re_score = re_head * re_relation - im_head * im_relation
-            im_score = re_head * im_relation + im_head * re_relation
-            score = re_score * re_tail + im_score * im_tail
+
+        re_score_0 = re_relation * re_tail + im_relation * im_tail
+        im_score_0 = re_relation * im_tail - im_relation * re_tail
+        score_0 = re_head * re_score_0 + im_head * im_score_0
+
+        re_score_1 = re_head * re_relation - im_head * im_relation
+        im_score_1 = re_head * im_relation + im_head * re_relation
+        score_1 = re_score_1 * re_tail + im_score_1 * im_tail
+
+        choice = tf.cond(tf.equal(mode, 0), lambda: 1.0, lambda: 0.0)
+        score = score_0*choice + score_1*(1-choice)
+
         score = tf.reduce_sum(score, axis=2)
         return score
 
     def TransE(self, head, relation, tail, mode):
-        if mode == 0:
-            score = head + (relation - tail)
-        else:
-            score = (head + relation) - tail
+        score = head + relation - tail
         score = self.gamma - tf.norm(score, ord=1, axis=2)
         return score
 
@@ -227,33 +250,28 @@ class TFKGEModel(tf.keras.Model):
             m = tf.matmul(rp, ep)
             result = tf.matmul(m + i,  tf.expand_dims(e, axis=-1))
             return tf.squeeze(result, axis=-1)
-        
+
         head, p_head = tf.split(head, num_or_size_splits=2, axis=2)
         relation, p_relation = tf.split(relation, num_or_size_splits=2, axis=2)
         tail, p_tail = tf.split(tail, num_or_size_splits=2, axis=2)
-    
+
         head_transfer = _transfer(head, p_head, p_relation)
         tail_transfer = _transfer(tail, p_tail, p_relation)
-        return tf.norm(head_transfer + relation - tail_transfer, axis=-1, ord=self.pnorm) ** 2
+        return tf.norm(head_transfer + relation - tail_transfer, axis=-1, ord=2) ** 2
 
 
 
-    # def STransE(self, head, relation, tail, mode):
-    #     """f_r(h,t) = |Mr1*h+r-Mr2*t| constraints on the norm <=1"""
-    #     # Projection matrix Mr, shape (k, k), initialize with identity matrix.
-    #     self.Mr1 = tf.get_variable("Mr1", [self.k, self.k], initializer=tf.initializers.identity(gain=0.1))
-    #     self.Mr1 = tf.tile(tf.expand_dims(self.Mr1, 0), [self.b, 1, 1])  # (b, k, k)
-    #     self.Mr2 = tf.get_variable("Mr2", [self.k, self.k], initializer=tf.initializers.identity(gain=0.1))
-    #     self.Mr2 = tf.tile(tf.expand_dims(self.Mr2, 0), [self.b, 1, 1])  # (b, k, k)
+    def STransE(self, head, relation, tail, mode):
+        # # Projection matrix Mr, shape (k, k), initialize with identity matrix.
+        # self.Mr1 = tf.get_variable("Mr1", [self.k, self.k], initializer=tf.initializers.identity(gain=0.1))
+        # self.Mr1 = tf.tile(tf.expand_dims(self.Mr1, 0), [self.b, 1, 1])  # (b, k, k)
+        # self.Mr2 = tf.get_variable("Mr2", [self.k, self.k], initializer=tf.initializers.identity(gain=0.1))
+        # self.Mr2 = tf.tile(tf.expand_dims(self.Mr2, 0), [self.b, 1, 1])  # (b, k, k)
 
-    #     h = tf.expand_dims(h, axis=2)  # (b, k) -> (b, k, 1)
-    #     t = tf.expand_dims(t, axis=2)  # (b, k) -> (b, k, 1)
-    #     dis = tf.squeeze(tf.matmul(self.Mr1, h), axis=2) + r + tf.squeeze(tf.matmul(self.Mr2, t), axis=2)
-    #     if self.params.score_func.lower() == 'l1':  # L1 score
-    #         score = tf.reduce_sum(tf.abs(dis), axis=1)
-    #     elif self.params.score_func.lower() == 'l2':  # L2 score
-    #         score = tf.sqrt(tf.reduce_sum(tf.square(dis), axis=1))
-    #     return score
+        # h = tf.expand_dims(h, axis=2)  # (b, k) -> (b, k, 1)
+        # t = tf.expand_dims(t, axis=2)  # (b, k) -> (b, k, 1)
+        dis = tf.matmul(self.W1, head) + relation + tf.matmul(self.W2, tail)
+        return tf.norm(dis, ord=1, axis=2) # L1, L2
 
 
     def TripleRE(self, head, relation, tail, mode):
@@ -264,8 +282,8 @@ class TFKGEModel(tf.keras.Model):
 
         re_head = tf.math.l2_normalize(re_head, axis=-1)
         re_tail = tf.math.l2_normalize(re_tail, axis=-1)
-        re_head = re_head * tf.sqrt(re_head.shape[-1])
-        re_tail = re_tail * tf.sqrt(re_tail.shape[-1])
+        re_head = re_head * self.k
+        re_tail = re_tail * self.k
 
         score = head * re_head - tail * re_tail + re_mid
         score = self.gamma - tf.norm(score, ord=1, axis=2)
@@ -293,13 +311,33 @@ class TFKGEModel(tf.keras.Model):
         score = self.gamma - tf.norm(score, ord=1, axis=2)
         return score
 
-    
+    def RotatE(self, head, relation, tail, mode):
+        re_head, im_head = tf.split(head, num_or_size_splits=2, axis=2)
+        re_tail, im_tail = tf.split(tail, num_or_size_splits=2, axis=2)
+        phase_relation = relation / (self.embedding_range / self.pi)
+        re_relation = tf.cos(phase_relation)
+        im_relation = tf.sin(phase_relation)
+
+        re_score_0 = re_relation * re_tail + im_relation * im_tail - re_head
+        im_score_0 = re_relation * im_tail - im_relation * im_tail - im_head
+        re_score_1 = re_head * re_relation - im_head * im_relation - re_tail
+        im_score_1 = re_head * im_relation + im_head * re_relation - im_tail
+
+        score_0 = tf.norm(tf.stack([re_score_0, im_score_0], axis=0), axis=0)
+        score_1 = tf.norm(tf.stack([re_score_1, im_score_1], axis=0), axis=0)
+
+        choice = tf.cond(tf.equal(mode, 0), lambda: 1.0, lambda: 0.0)
+
+        score = score_0*choice + score_1*(1-choice)
+        score = self.gamma - tf.reduce_sum(score, axis=2)
+        return score
+
     def RotPro(self, head, relation, tail, mode):
         re_head, im_head = tf.split(head, num_or_size_splits=2, axis=2)
         r_phase, proj_a, proj_b, proj_phase = tf.split(relation, num_or_size_splits=4, axis=2)
         re_tail, im_tail = tf.split(tail, num_or_size_splits=2, axis=2)
-        
-        re_r_phase = tf.ones_like(r_phase) * tf.cos(r_phase) 
+
+        re_r_phase = tf.ones_like(r_phase) * tf.cos(r_phase)
         im_r_phase = tf.ones_like(r_phase) * tf.sin(r_phase)
         # r_phase = tf.complex(re_r_phase, im_r_phase)
 
@@ -316,8 +354,8 @@ class TFKGEModel(tf.keras.Model):
 
         tt_real, tt_img = pr(re_tail, im_tail)
         pr_re_head, pr_im_head = pr(re_head, im_head)
-        hr_real = re_r_phase * pr_re_head + -im_r_phase * pr_im_head 
-        hr_img = im_r_phase * pr_re_head + re_r_phase * pr_im_head 
+        hr_real = re_r_phase * pr_re_head + -im_r_phase * pr_im_head
+        hr_img = im_r_phase * pr_re_head + re_r_phase * pr_im_head
 
         hr = tf.complex(hr_real, hr_img)
         tt = tf.complex(tt_real, tt_img)
