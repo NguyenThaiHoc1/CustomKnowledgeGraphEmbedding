@@ -37,7 +37,7 @@ class DataLoader(object):
                     buffer_size = min(self._size, buffer_size)
                 dataset = dataset.shuffle(buffer_size=buffer_size)
 
-        dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+        # dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
         return dataset
 
@@ -195,15 +195,15 @@ class TestDataGenerator2Dataset:
         for i in range(self.data_generator.len):
             yield self.data_generator.__getitem__(i)
 
-    def convert(self, data_generator):
+    def convert(self, data_generator, nentity, nrelation):
         self.data_generator = data_generator
 
         dataset = tf.data.Dataset.from_generator(
             self._gen_data_generator,
             output_signature=(
                 tf.TensorSpec(shape=(3,), dtype=tf.int32),
-                tf.TensorSpec(shape=(40943,), dtype=tf.int32),
-                tf.TensorSpec(shape=(40943,), dtype=tf.float32),
+                tf.TensorSpec(shape=(nentity,), dtype=tf.int32),
+                tf.TensorSpec(shape=(nentity,), dtype=tf.float32),
                 tf.TensorSpec(shape=(), dtype=tf.int32),
             )
         )

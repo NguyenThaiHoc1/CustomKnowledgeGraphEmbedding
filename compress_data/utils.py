@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 
+# WRITTING TFRECORD FILE
 def image_feature(value):
     """Returns a bytes_list from a string / byte."""
     return tf.train.Feature(
@@ -37,6 +38,36 @@ def create_example(positive_sample, negative_sample, subsampling_weight, mode):
         "positive_sample": int_feature_list(positive_sample),
         "negative_sample": int_feature_list(negative_sample),
         "subsampling_weight": float_feature_list(subsampling_weight),
-        "mode": int_feature_list(mode),
+        "mode": int64_feature(mode),
     }
     return tf.train.Example(features=tf.train.Features(feature=feature))
+
+
+# READING TFRECORD FILE & CONVERT SHAPE
+def parse_tfrecord_fn(example):
+    feature_description = {
+        "positive_sample": tf.io.VarLenFeature(tf.int64),
+        "negative_sample": tf.io.VarLenFeature(tf.int64),
+        "subsampling_weight": tf.io.VarLenFeature(tf.float32),
+        "mode": tf.io.VarLenFeature(tf.int64),
+    }
+    example = tf.io.parse_single_example(example, feature_description)
+    example["positive_sample"] = tf.sparse.to_dense(example["positive_sample"])
+    example["negative_sample"] = tf.sparse.to_dense(example["negative_sample"])
+    example["subsampling_weight"] = tf.sparse.to_dense(example["subsampling_weight"])
+    example["mode"] = tf.sparse.to_dense(example["mode"])
+    return example
+
+
+def reshape_function(example, batch_size):
+    postive_sample = example["positive_sample"]
+    negative_sample = example["negative_sample"]
+    subsampling_weight = example["subsampling_weight"]
+    mode = example["mode"]
+
+    postive_sample = tf.reshape(postive_sample, [-1])
+    negative_sample = tf.reshape(negative_sample, [-1])
+    subsampling_weight = tf.reshape(subsampling_weight, [-1])
+    mode = tf.reshape(mode, [1])
+
+    return postive_sample, negative_sample, subsampling_weight, mode

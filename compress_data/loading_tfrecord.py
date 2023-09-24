@@ -1,54 +1,41 @@
 import tensorflow as tf
 import os
+from utils import parse_tfrecord_fn, reshape_function
 
 
-def parse_tfrecord_fn(example):
-    feature_description = {
-        "positive_sample": tf.io.VarLenFeature(tf.int64),
-        "negative_sample": tf.io.VarLenFeature(tf.int64),
-        "subsampling_weight": tf.io.VarLenFeature(tf.float32),
-        "mode": tf.io.VarLenFeature(tf.int64),
-    }
-    example = tf.io.parse_single_example(example, feature_description)
-    example["positive_sample"] = tf.sparse.to_dense(example["positive_sample"])
-    example["negative_sample"] = tf.sparse.to_dense(example["negative_sample"])
-    example["subsampling_weight"] = tf.sparse.to_dense(example["subsampling_weight"])
-    example["mode"] = tf.sparse.to_dense(example["mode"])
-    return example
+def read_info(path_file):
+    with open(path_file, "r") as f:
+        nrelation, nentity = f.read().rstrip('\n').split(' ')
+    return int(nrelation), int(nentity)
 
 
-def reshape_function(example, batch_size):
-    postive_sample = example["positive_sample"]
-    negative_sample = example["negative_sample"]
-    subsampling_weight = example["subsampling_weight"]
-    mode = example["mode"]
+def read_dataloader(dataloader, show_shape=True):
+    count_split = 0
+    for features in dataloader:
+        data = features
+        a, b, c, d = data
+        if show_shape:
+            print(a.shape, b.shape, c.shape, d.shape)
+            break
+        count_split += 1
+        break
+    print(count_split)
 
-    postive_sample = tf.reshape(postive_sample, [batch_size, -1])
-    negative_sample = tf.reshape(negative_sample, [batch_size, -1])
-    subsampling_weight = tf.reshape(subsampling_weight, [batch_size, -1])
-    mode = tf.reshape(mode, [batch_size, ])
 
-    return postive_sample, negative_sample, subsampling_weight, mode
+if __name__ == '__main__':
+    folder_path = 'split_data/wn18rr'
+    folder_mode = 'test'
+    folder_data_path = os.path.join(folder_path, folder_mode)
 
+    # list all file tfrec
+    file_list = os.listdir(folder_data_path)
+    tfrec_files = [os.path.join(folder_path, file) for file in file_list if file.endswith("head.tfrec")]
+    print("List file tfrec: \n", tfrec_files)
+    raw_dataset = tf.data.TFRecordDataset(tfrec_files)
+    dataloader = raw_dataset.map(parse_tfrecord_fn)
+    dataloader = dataloader.map(lambda inputs: reshape_function(inputs, batch_size=512))
 
-folder_path = 'split_data_test/wn18rr_512'
+    nrelation, nentity = read_info(path_file=os.path.join(folder_path, "info.txt"))
+    print(nrelation, " ", nentity)
 
-file_list = os.listdir(folder_path)
-
-tfrec_files = [os.path.join(folder_path, file) for file in file_list if file.endswith(".tfrec")]
-
-print(
-    tfrec_files
-)
-raw_dataset = tf.data.TFRecordDataset(tfrec_files)
-parsed_dataset = raw_dataset.map(parse_tfrecord_fn)
-parsed_dataset = parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=512))
-
-count_split = 0
-for features in parsed_dataset:
-    data = features
-    a, b, c, d = data
-    # print(a.shape, b.shape, c.shape, d.shape)
-    count_split += 1
-
-print(count_split)
+    read_dataloader(dataloader, show_shape=False)
