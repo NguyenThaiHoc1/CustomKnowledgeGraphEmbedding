@@ -1,5 +1,9 @@
 import tensorflow as tf
-from .score_functions import InterHTScorer, DistMultScorer, ComplEXScorer
+from .score_functions import (
+    InterHTScorer, DistMultScorer, ComplEXScorer,
+    RotatEScorer, RotateCTScorer, RotProScorer,
+    STransEScorer, TranSScorer, TransDScorer, TransEScorer, TripleREScorer
+)
 
 
 class TFKGEModel(tf.keras.Model):
@@ -51,7 +55,10 @@ class TFKGEModel(tf.keras.Model):
         self.model_func = {
             'InterHT': self.InterHT,
             'DistMult': self.DistMult,
-            'ComplEx': self.ComplEx
+            'ComplEx': self.ComplEx,
+            'RotatE': self.RotatE,
+            'RotPro': self.RotPro,
+            'RotateCT': self.RotateCT
         }
 
     def positive_call(self, sample, training=True, **kwargs):
@@ -138,12 +145,15 @@ class TFKGEModel(tf.keras.Model):
     #
     # def TranS(self, head, relation, tail, mode):
     #     return TranSScorer(head, relation, tail, mode).compute_score()
-    #
-    # def RotatE(self, head, relation, tail, mode):
-    #     return RotatEScorer(head, relation, tail, mode).compute_score()
-    #
-    # def RotPro(self, head, relation, tail, mode):
-    #     return RotProScorer(head, relation, tail, mode).compute_score()
-    #
-    # def RotateCT(self, head, relation, tail, mode):
-    #     return RotateCTScorer(head, relation, tail, mode).compute_score()
+
+    def RotatE(self, head, relation, tail, mode):
+        return RotatEScorer(head, relation, tail, mode,
+                            embedding_range=self.embedding_range,
+                            pi=self.pi,
+                            gamma=self.gamma).compute_score()
+
+    def RotPro(self, head, relation, tail, mode):
+        return RotProScorer(head, relation, tail, mode).compute_score()
+
+    def RotateCT(self, head, relation, tail, mode):
+        return RotateCTScorer(head, relation, tail, mode).compute_score()
