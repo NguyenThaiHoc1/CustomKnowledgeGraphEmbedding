@@ -49,7 +49,8 @@ class TFKGEModel(tf.keras.Model):
         self.relation_embedding.assign(initializer(self.relation_embedding.shape))
 
         self.model_func = {
-            'InterHT': self.InterHT
+            'InterHT': self.InterHT,
+            'DistMult': self.DistMult
         }
 
     def positive_call(self, sample, training=True, **kwargs):
