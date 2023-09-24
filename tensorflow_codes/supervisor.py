@@ -74,7 +74,7 @@ class Trainer:
             self.train_step(train_iteration_data)
             epoch_steps += steps_per_tpu_call
             step += steps_per_tpu_call
-            print('=', end='', flush=True)
+            print('=================', end='', flush=True)
 
             # report metrics
             epoch_time = time.time() - epoch_start_time

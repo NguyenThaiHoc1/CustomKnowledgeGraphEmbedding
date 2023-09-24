@@ -117,7 +117,6 @@ def lrfn(epoch):
 
 def run(strategy, args):
     # reading data ...
-
     # train
     if not args.multiple_files:
         filenames_head = args.input_path
@@ -142,8 +141,11 @@ def run(strategy, args):
     print("====" * 6)
 
     train_dataloader = loading_data(filenames_head, filenames_tail, bz=args.batch_size, do_training=True)
-    print("Prepare is done.")
-    print("Start Training...")
+    print("1. Data loading complete.")
+
+    assert args.score_functions not in ["InterHT"], f"{args.score_functions} is not implemented."
+    print("2. Score function check complete.")
+
     with strategy.scope():
         kge_model = TFKGEModel(
             model_name=args.score_functions,
@@ -182,11 +184,13 @@ def run(strategy, args):
             optimizer=optimizer,
             metrics=list_metrics
         )
+        print("3. Starting training...")
         trainer.training(
             steps_per_tpu_call=99,
             epochs=args.epochs,
             steps_per_epoch=args.steps_per_epoch
         )
+    print("4. Training complete.")
 
 
 if __name__ == '__main__':
