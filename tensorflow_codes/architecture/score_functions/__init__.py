@@ -1,1 +1,1 @@
-from interHT import InterHTScorer
+from .interHT import InterHTScorer

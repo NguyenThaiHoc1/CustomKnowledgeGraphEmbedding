@@ -1,5 +1,5 @@
 import tensorflow as tf
-from score_functions import InterHTScorer
+from .score_functions import InterHTScorer
 
 
 class TFKGEModel(tf.keras.Model):

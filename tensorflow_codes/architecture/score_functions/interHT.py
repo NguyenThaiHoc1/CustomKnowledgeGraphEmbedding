@@ -1,5 +1,5 @@
 import tensorflow as tf
-from base_score import BaseScorer
+from .base_score import BaseScorer
 
 
 class InterHTScorer(BaseScorer):
