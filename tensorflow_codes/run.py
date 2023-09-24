@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os
 import argparse
-from model import TFKGEModel
+from architecture.model import TFKGEModel
 from supervisor import Trainer
 
 
@@ -23,7 +23,7 @@ def args_parser():
     parser.add_argument("-bz", "--batch_size", required=True, type=int)
     parser.add_argument("--test_path", required=False, type=str)
 
-    parser.add_argument("-sf", "--score_function", required=True, type=str)
+    parser.add_argument("-sf", "--score_functions", required=True, type=str)
     parser.add_argument("--nentity", required=True, type=int)
     parser.add_argument("--nrelation", required=True, type=int)
     parser.add_argument("--hidden_dim", required=True, type=int)
@@ -60,12 +60,41 @@ def reshape_function(example, batch_size):
     subsampling_weight = example["subsampling_weight"]
     mode = example["mode"]
 
-    postive_sample = tf.reshape(postive_sample, [batch_size, -1])
-    negative_sample = tf.reshape(negative_sample, [batch_size, -1])
-    subsampling_weight = tf.reshape(subsampling_weight, [batch_size, -1])
-    mode = tf.reshape(mode, [batch_size, ])
+    postive_sample = tf.reshape(postive_sample, [-1])
+    negative_sample = tf.reshape(negative_sample, [-1])
+    subsampling_weight = tf.reshape(subsampling_weight, [-1])
+    mode = tf.reshape(mode, [1])
 
     return postive_sample, negative_sample, subsampling_weight, mode
+
+
+def loading_data(head_dataloader_path, tail_dataloader_path, bz, do_training=True):
+    try:
+        # loading head file
+        head_raw_dataset = tf.data.TFRecordDataset(head_dataloader_path)
+        head_parsed_dataset = head_raw_dataset.map(parse_tfrecord_fn)
+        head_parsed_dataset = head_parsed_dataset.map(
+            lambda inputs: reshape_function(inputs, batch_size=args.batch_size))
+        head_parsed_dataset = head_parsed_dataset.batch(bz)
+
+        # loading tail file
+        tail_raw_dataset = tf.data.TFRecordDataset(tail_dataloader_path)
+        tail_parsed_dataset = tail_raw_dataset.map(parse_tfrecord_fn)
+        tail_parsed_dataset = tail_parsed_dataset.map(
+            lambda inputs: reshape_function(inputs, batch_size=args.batch_size))
+        tail_parsed_dataset = tail_parsed_dataset.batch(bz)
+
+        combined_dataset = tf.data.Dataset.sample_from_datasets(
+            [head_parsed_dataset, tail_parsed_dataset],
+            weights=[0.5, 0.5]
+        )
+
+        if do_training:
+            combined_dataset = combined_dataset.repeat()
+
+        return combined_dataset
+    except Exception as e:
+        raise ValueError(f"func loading_data: {e}")
 
 
 @tf.function
@@ -91,24 +120,28 @@ def run(strategy, args):
 
     # train
     if args.multiple_files:
-        filenames = args.input_path
+        filenames_head = args.input_path
+        filenames_tail = args.input_path
         print(f"Test {args.input_path} is a file")
     else:
-        filenames = tf.io.gfile.glob(os.path.join(args.input_path, "*.tfrec"))
-        print(f"Train List files: \n {filenames}")
+        filenames_head = tf.io.gfile.glob(os.path.join(args.input_path, "*-head.tfrec"))
+        filenames_tail = tf.io.gfile.glob(os.path.join(args.input_path, "*-tail.tfrec"))
+        print(f"Head - Train List files: \n {filenames_head}")
+        print(f"Tail - Train List files: \n {filenames_tail}")
 
-    raw_dataset = tf.data.TFRecordDataset(filenames)
-    parsed_dataset = raw_dataset.map(parse_tfrecord_fn)
-    parsed_dataset = parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=args.batch_size))
-    parsed_dataset = parsed_dataset.repeat()
+    # test
+    if args.test_path is not None:
+        test_filenames_head = tf.io.gfile.glob(os.path.join(args.test_path, "*-head.tfrec"))
+        test_filenames_tail = tf.io.gfile.glob(os.path.join(args.test_path, "*-tail.tfrec"))
+        test_dataloader = loading_data(test_filenames_head, test_filenames_tail, bz=4, do_training=True)
+        print(f"Head - Test List files: \n {test_filenames_head}")
+        print(f"Tail - Test List files: \n {test_filenames_tail}")
+    else:
+        test_dataloader = None
 
-    test_filenames = tf.io.gfile.glob(os.path.join(args.test_path, "*.tfrec"))
-    print(f"Test List files: \n {test_filenames}")
-    test_raw_dataset = tf.data.TFRecordDataset(test_filenames)
-    test_parsed_dataset = test_raw_dataset.map(parse_tfrecord_fn)
-    test_parsed_dataset = test_parsed_dataset.map(lambda inputs: reshape_function(inputs, batch_size=4))
-    test_parsed_dataset = test_parsed_dataset.repeat()
-
+    train_dataloader = loading_data(filenames_head, filenames_tail, bz=args.batch_size, do_training=True)
+    print("Prepare is done.")
+    print("Start Training...")
     with strategy.scope():
         kge_model = TFKGEModel(
             model_name=args.score_function,
@@ -141,8 +174,8 @@ def run(strategy, args):
         # supervisor
         trainer = Trainer(
             strategy=strategy,
-            train_dataloader=parsed_dataset,
-            test_dataloader=test_parsed_dataset,
+            train_dataloader=train_dataloader,
+            test_dataloader=test_dataloader,
             model=kge_model,
             optimizer=optimizer,
             metrics=list_metrics

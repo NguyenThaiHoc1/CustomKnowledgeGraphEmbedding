@@ -1,51 +1,8 @@
 import tensorflow as tf
-
-
-def loss(model,
-         inputs,
-         regularization,
-         negative_adversarial_sampling,
-         uni_weight,
-         adversarial_temperature):
-    positive_sample, negative_sample, subsampling_weight, mode = inputs
-    negative_score = model((positive_sample, negative_sample), mode=mode)
-
-    if negative_adversarial_sampling:
-        # In self-adversarial sampling, we do not apply back-propagation on the sampling weight
-        negative_score = (tf.nn.softmax(negative_score * adversarial_temperature, axis=1).numpy()
-                          * tf.math.log_sigmoid(-negative_score)).sum(axis=1)
-    else:
-        negative_score = tf.math.log_sigmoid(-negative_score).numpy().mean(axis=1)
-
-    positive_score = model(positive_sample)
-
-    positive_score = tf.math.log_sigmoid(positive_score).numpy().squeeze(axis=1)
-
-    if uni_weight:
-        positive_sample_loss = - positive_score.mean()
-        negative_sample_loss = - negative_score.mean()
-    else:
-        positive_sample_loss = - (subsampling_weight * positive_score).sum() / subsampling_weight.sum()
-        negative_sample_loss = - (subsampling_weight * negative_score).sum() / subsampling_weight.sum()
-
-    loss = (positive_sample_loss + negative_sample_loss) / 2
-
-    if regularization != 0.0:
-        # Use L3 regularization for ComplEx and DistMult
-        regularization = regularization * (
-                tf.norm(model.entity_embedding, ord=3).numpy() ** 3 +
-                tf.norm(tf.norm(model.relation_embedding, ord=3), ord=3).numpy() ** 3
-        )
-        loss = loss + regularization
-        regularization_log = {'regularization': regularization}
-    else:
-        regularization_log = {}
-
-    return loss
+from tensorflow_codes.architecture.score_functions import InterHTScorer
 
 
 class TFKGEModel(tf.keras.Model):
-
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma,
                  double_entity_embedding=False, double_relation_embedding=False,
                  triple_relation_embedding=False,
@@ -157,20 +114,34 @@ class TFKGEModel(tf.keras.Model):
         return head_score * negative_condition + tail_score * (1 - negative_condition)
 
     def InterHT(self, head, relation, tail, mode):
-        a_head, b_head = tf.split(head, num_or_size_splits=2, axis=2)
-        re_head, re_mid, re_tail = tf.split(relation, num_or_size_splits=3, axis=2)
-        a_tail, b_tail = tf.split(tail, num_or_size_splits=2, axis=2)
+        return InterHTScorer(head, relation, tail, mode, u=self.u, gamma=self.gamma).compute_score()
 
-        e_h = tf.ones_like(b_head)
-        e_t = tf.ones_like(b_tail)
-
-        a_head = tf.linalg.normalize(a_head, ord=2, axis=-1)[0]
-        a_tail = tf.linalg.normalize(a_tail, ord=2, axis=-1)[0]
-        b_head = tf.linalg.normalize(b_head, ord=2, axis=-1)[0]
-        b_tail = tf.linalg.normalize(b_tail, ord=2, axis=-1)[0]
-        b_head = b_head + self.u * e_h
-        b_tail = b_tail + self.u * e_t
-
-        score = a_head * b_tail - a_tail * b_head + re_mid
-        score = self.gamma - tf.norm(score, ord=1, axis=2)
-        return score
+    # def DistMult(self, head, relation, tail, mode):
+    #     return DistMultScorer(head, relation, tail, mode).compute_score()
+    #
+    # def ComplEx(self, head, relation, tail, mode):
+    #     return ComplExScorer(head, relation, tail, mode).compute_score()
+    #
+    # def TransE(self, head, relation, tail, mode):
+    #     return TransEScorer(head, relation, tail, mode).compute_score()
+    #
+    # def TransD(self, head, relation, tail, mode):
+    #     return TransDScorer(head, relation, tail, mode).compute_score()
+    #
+    # def STransE(self, head, relation, tail, mode):
+    #     return STransEScorer(head, relation, tail, mode).compute_score()
+    #
+    # def TripleRE(self, head, relation, tail, mode):
+    #     return TripleREScorer(head, relation, tail, mode).compute_score()
+    #
+    # def TranS(self, head, relation, tail, mode):
+    #     return TranSScorer(head, relation, tail, mode).compute_score()
+    #
+    # def RotatE(self, head, relation, tail, mode):
+    #     return RotatEScorer(head, relation, tail, mode).compute_score()
+    #
+    # def RotPro(self, head, relation, tail, mode):
+    #     return RotProScorer(head, relation, tail, mode).compute_score()
+    #
+    # def RotateCT(self, head, relation, tail, mode):
+    #     return RotateCTScorer(head, relation, tail, mode).compute_score()
