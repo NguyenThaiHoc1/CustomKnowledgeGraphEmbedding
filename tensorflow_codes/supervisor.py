@@ -67,7 +67,7 @@ class Trainer:
         epoch_steps = 0
         epoch_start_time = time.time()
         train_iteration_data = iter(self.train_dataloader)
-        test_iteration_data = iter(self.test_dataloader)
+        test_iteration_data = iter(self.test_dataloader) if self.test_dataloader is not None else None
 
         while True:
             # run training step
@@ -84,14 +84,15 @@ class Trainer:
                   flush=True)
 
             # test
-            self.test_step(test_iteration_data)
-            print('Test step',
-                  'MRR: {:0.4f}'.format(round(float(self.metrics["MRR"].result()), 4)),
-                  'MR: {:0.4f}'.format(round(float(self.metrics["MR"].result()), 4)),
-                  'HITS_AT_1: {:0.4f}'.format(round(float(self.metrics["HITS_AT_1"].result()), 4)),
-                  'HITS_AT_3: {:0.4f}'.format(round(float(self.metrics["HITS_AT_3"].result()), 4)),
-                  'HITS_AT_10: {:0.4f}'.format(round(float(self.metrics["HITS_AT_10"].result()), 4)),
-                  flush=True)
+            if test_iteration_data is not None:
+                self.test_step(test_iteration_data)
+                print('Test step',
+                      'MRR: {:0.4f}'.format(round(float(self.metrics["MRR"].result()), 4)),
+                      'MR: {:0.4f}'.format(round(float(self.metrics["MR"].result()), 4)),
+                      'HITS_AT_1: {:0.4f}'.format(round(float(self.metrics["HITS_AT_1"].result()), 4)),
+                      'HITS_AT_3: {:0.4f}'.format(round(float(self.metrics["HITS_AT_3"].result()), 4)),
+                      'HITS_AT_10: {:0.4f}'.format(round(float(self.metrics["HITS_AT_10"].result()), 4)),
+                      flush=True)
 
             epoch = step // steps_per_epoch
             epoch_steps = 0

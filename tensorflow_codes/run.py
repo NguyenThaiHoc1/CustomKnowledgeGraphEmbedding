@@ -119,7 +119,7 @@ def run(strategy, args):
     # reading data ...
 
     # train
-    if args.multiple_files:
+    if not args.multiple_files:
         filenames_head = args.input_path
         filenames_tail = args.input_path
         print(f"Test {args.input_path} is a file")
@@ -144,7 +144,7 @@ def run(strategy, args):
     print("Start Training...")
     with strategy.scope():
         kge_model = TFKGEModel(
-            model_name=args.score_function,
+            model_name=args.score_functions,
             nentity=args.nentity,
             nrelation=args.nrelation,
             hidden_dim=args.hidden_dim,
