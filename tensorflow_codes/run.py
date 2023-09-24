@@ -128,6 +128,7 @@ def run(strategy, args):
         filenames_tail = tf.io.gfile.glob(os.path.join(args.input_path, "*-tail.tfrec"))
         print(f"Head - Train List files: \n {filenames_head}")
         print(f"Tail - Train List files: \n {filenames_tail}")
+    print("====" * 6)
 
     # test
     if args.test_path is not None:
@@ -138,6 +139,7 @@ def run(strategy, args):
         print(f"Tail - Test List files: \n {test_filenames_tail}")
     else:
         test_dataloader = None
+    print("====" * 6)
 
     train_dataloader = loading_data(filenames_head, filenames_tail, bz=args.batch_size, do_training=True)
     print("Prepare is done.")
