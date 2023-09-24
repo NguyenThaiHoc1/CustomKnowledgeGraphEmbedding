@@ -1,5 +1,5 @@
 import tensorflow as tf
-from .score_functions import InterHTScorer, DistMultScorer
+from .score_functions import InterHTScorer, DistMultScorer, ComplEXScorer
 
 
 class TFKGEModel(tf.keras.Model):
@@ -50,7 +50,8 @@ class TFKGEModel(tf.keras.Model):
 
         self.model_func = {
             'InterHT': self.InterHT,
-            'DistMult': self.DistMult
+            'DistMult': self.DistMult,
+            'ComplEx': self.ComplEx
         }
 
     def positive_call(self, sample, training=True, **kwargs):
@@ -120,9 +121,9 @@ class TFKGEModel(tf.keras.Model):
     def DistMult(self, head, relation, tail, mode):
         return DistMultScorer(head, relation, tail, mode).compute_score()
 
-    # def ComplEx(self, head, relation, tail, mode):
-    #     return ComplExScorer(head, relation, tail, mode).compute_score()
-    #
+    def ComplEx(self, head, relation, tail, mode):
+        return ComplEXScorer(head, relation, tail, mode).compute_score()
+
     # def TransE(self, head, relation, tail, mode):
     #     return TransEScorer(head, relation, tail, mode).compute_score()
     #

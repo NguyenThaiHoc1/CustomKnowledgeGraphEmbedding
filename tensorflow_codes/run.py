@@ -143,7 +143,7 @@ def run(strategy, args):
     train_dataloader = loading_data(filenames_head, filenames_tail, bz=args.batch_size, do_training=True)
     print("1. Data loading complete.")
 
-    assert args.score_functions not in ["InterHT", "DistMult"], f"{args.score_functions} is not implemented."
+    assert args.score_functions in ["InterHT", "DistMult", "ComplEx"], f"{args.score_functions} is not implemented."
     print("2. Score function check complete.")
 
     with strategy.scope():
