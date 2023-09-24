@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 from .score_functions import (
     InterHTScorer, DistMultScorer, ComplEXScorer,
     RotatEScorer, RotateCTScorer, RotProScorer,
@@ -40,6 +41,9 @@ class TFKGEModel(tf.keras.Model):
 
         if model_name == 'InterHT':
             self.u = 1
+
+        if model_name == 'RotatE':
+            self.pi = tf.constant(np.pi, dtype=tf.float32)
 
         self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
         self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
