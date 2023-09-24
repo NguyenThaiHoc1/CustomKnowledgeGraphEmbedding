@@ -1,5 +1,5 @@
 import tensorflow as tf
-from .score_functions import InterHTScorer
+from .score_functions import InterHTScorer, DistMultScorer
 
 
 class TFKGEModel(tf.keras.Model):
@@ -116,9 +116,9 @@ class TFKGEModel(tf.keras.Model):
     def InterHT(self, head, relation, tail, mode):
         return InterHTScorer(head, relation, tail, mode, u=self.u, gamma=self.gamma).compute_score()
 
-    # def DistMult(self, head, relation, tail, mode):
-    #     return DistMultScorer(head, relation, tail, mode).compute_score()
-    #
+    def DistMult(self, head, relation, tail, mode):
+        return DistMultScorer(head, relation, tail, mode).compute_score()
+
     # def ComplEx(self, head, relation, tail, mode):
     #     return ComplExScorer(head, relation, tail, mode).compute_score()
     #
