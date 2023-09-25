@@ -73,18 +73,14 @@ class TFKGEModel(tf.keras.Model):
             self.W = tf.Variable(tf.zeros([nrelation, self.relation_dim, self.relation_dim]), trainable=True)
             self.W.assign(initializer(self.W.shape))
 
-        if model_name in ['TranSparse']:
-            self.entity_embedding.assign(initializer(self.entity_embedding.shape))
-            self.relation_embedding.assign(initializer(self.relation_embedding.shape))
-        else:
-            self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
-            self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
+        self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
+        self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
 
-            initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
-            self.entity_embedding.assign(initializer(self.entity_embedding.shape))
+        initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
+        self.entity_embedding.assign(initializer(self.entity_embedding.shape))
 
-            initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
-            self.relation_embedding.assign(initializer(self.relation_embedding.shape))
+        initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
+        self.relation_embedding.assign(initializer(self.relation_embedding.shape))
 
         self.model_func = {
             'InterHT': self.InterHT,

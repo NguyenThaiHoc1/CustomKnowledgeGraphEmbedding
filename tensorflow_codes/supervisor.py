@@ -1,5 +1,6 @@
 import tensorflow as tf
 import time
+from tqdm import tqdm
 
 
 class Trainer:
@@ -70,6 +71,7 @@ class Trainer:
         test_iteration_data = iter(self.test_dataloader) if self.test_dataloader is not None else None
 
         while True:
+            tqdm(epoch, total=epochs)
             # run training step
             self.train_step(train_iteration_data)
             epoch_steps += steps_per_tpu_call
