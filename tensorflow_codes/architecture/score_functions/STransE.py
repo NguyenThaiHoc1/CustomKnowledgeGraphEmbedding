@@ -10,5 +10,5 @@ class STransEScorer(BaseScorer):
         self.w2 = w2
 
     def compute_score(self):
-        dis = tf.matmul(self.head, self.W1) + self.relation - tf.matmul(self.tail, self.W2)
+        dis = tf.matmul(self.head, self.w1) + self.relation - tf.matmul(self.tail, self.w2)
         return tf.norm(dis, ord=1, axis=2)  # L1, L2
