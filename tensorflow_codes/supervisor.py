@@ -76,25 +76,25 @@ class Trainer:
             self.train_step(train_iteration_data)
             epoch_steps += steps_per_tpu_call
             step += steps_per_tpu_call
-            print('=================', end='', flush=True)
+            # print('=================', end='', flush=True)
 
             # report metrics
             epoch_time = time.time() - epoch_start_time
-            print('\nEPOCH {:d}/{:d}'.format(epoch + 1, epochs))
-            print('time: {:0.1f}s'.format(epoch_time),
-                  'loss: {:0.4f}'.format(round(float(self.metrics["train_loss"].result()), 4)),
-                  flush=True)
+            # print('\nEPOCH {:d}/{:d}'.format(epoch + 1, epochs))
+            # print('time: {:0.1f}s'.format(epoch_time),
+            #       'loss: {:0.4f}'.format(round(float(self.metrics["train_loss"].result()), 4)),
+            #       flush=True)
 
             # test
             if test_iteration_data is not None:
                 self.test_step(test_iteration_data)
-                print('Test step',
-                      'MRR: {:0.4f}'.format(round(float(self.metrics["MRR"].result()), 4)),
-                      'MR: {:0.4f}'.format(round(float(self.metrics["MR"].result()), 4)),
-                      'HITS_AT_1: {:0.4f}'.format(round(float(self.metrics["HITS_AT_1"].result()), 4)),
-                      'HITS_AT_3: {:0.4f}'.format(round(float(self.metrics["HITS_AT_3"].result()), 4)),
-                      'HITS_AT_10: {:0.4f}'.format(round(float(self.metrics["HITS_AT_10"].result()), 4)),
-                      flush=True)
+                # print('Test step',
+                #       'MRR: {:0.4f}'.format(round(float(self.metrics["MRR"].result()), 4)),
+                #       'MR: {:0.4f}'.format(round(float(self.metrics["MR"].result()), 4)),
+                #       'HITS_AT_1: {:0.4f}'.format(round(float(self.metrics["HITS_AT_1"].result()), 4)),
+                #       'HITS_AT_3: {:0.4f}'.format(round(float(self.metrics["HITS_AT_3"].result()), 4)),
+                #       'HITS_AT_10: {:0.4f}'.format(round(float(self.metrics["HITS_AT_10"].result()), 4)),
+                #       flush=True)
 
             epoch = step // steps_per_epoch
             epoch_steps = 0
