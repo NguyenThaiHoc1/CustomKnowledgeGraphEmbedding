@@ -24,6 +24,8 @@ class TFKGEModel(tf.keras.Model):
         self.embedding_range = tf.Variable([(self.gamma.numpy() + self.epsilon) / hidden_dim],
                                            trainable=False, dtype=tf.float32)
 
+        initializer_range = (self.gamma.numpy() + self.epsilon) / hidden_dim
+
         if double_relation_embedding:
             self.relation_dim = hidden_dim * 2
         else:
@@ -39,16 +41,27 @@ class TFKGEModel(tf.keras.Model):
         else:
             self.relation_dim = hidden_dim
 
-        if model_name == 'InterHT':
+        if model_name in ['InterHT', 'TranS']:
             self.u = 1
 
-        if model_name == 'RotatE':
+        elif model_name in ['RotatE']:
             self.pi = tf.constant(np.pi, dtype=tf.float32)
+
+        elif model_name in ['STransE']:
+            self.W1 = tf.Variable(tf.zeros([self.entity_dim, self.entity_dim]), trainable=True)
+            initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
+            self.W1.assign(initializer(self.W1.shape))
+
+            self.W2 = tf.Variable(tf.zeros([self.entity_dim, self.entity_dim]), trainable=True)
+            initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
+            self.W2.assign(initializer(self.W2.shape))
+
+        elif model_name in ['TripleRE']:
+            self.k = tf.sqrt(tf.cast(hidden_dim, tf.float32))
 
         self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
         self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
 
-        initializer_range = (self.gamma.numpy() + self.epsilon) / hidden_dim
         initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
 
         self.entity_embedding.assign(initializer(self.entity_embedding.shape))
@@ -62,7 +75,12 @@ class TFKGEModel(tf.keras.Model):
             'ComplEx': self.ComplEx,
             'RotatE': self.RotatE,
             'RotPro': self.RotPro,
-            'RotateCT': self.RotateCT
+            'RotateCT': self.RotateCT,
+            'STransE': self.STransEScorer,
+            'TranS': self.TranSScorer,
+            'TransD': self.TransDScorer,
+            'TransE': self.TransEScorer,
+            'TripleRE': self.TripleREScorer
         }
 
     def positive_call(self, sample, training=True, **kwargs):
@@ -135,20 +153,23 @@ class TFKGEModel(tf.keras.Model):
     def ComplEx(self, head, relation, tail, mode):
         return ComplEXScorer(head, relation, tail, mode).compute_score()
 
-    # def TransE(self, head, relation, tail, mode):
-    #     return TransEScorer(head, relation, tail, mode).compute_score()
-    #
-    # def TransD(self, head, relation, tail, mode):
-    #     return TransDScorer(head, relation, tail, mode).compute_score()
-    #
-    # def STransE(self, head, relation, tail, mode):
-    #     return STransEScorer(head, relation, tail, mode).compute_score()
-    #
-    # def TripleRE(self, head, relation, tail, mode):
-    #     return TripleREScorer(head, relation, tail, mode).compute_score()
-    #
-    # def TranS(self, head, relation, tail, mode):
-    #     return TranSScorer(head, relation, tail, mode).compute_score()
+    def TransE(self, head, relation, tail, mode):
+        return TransEScorer(head, relation, tail, mode, gamma=self.gamma).compute_score()
+
+    def TransD(self, head, relation, tail, mode):
+        return TransDScorer(head, relation, tail, mode).compute_score()
+
+    def STransE(self, head, relation, tail, mode):
+        return STransEScorer(head, relation, tail, mode,
+                             w1=self.W1,
+                             w2=self.W2).compute_score()
+
+    def TripleRE(self, head, relation, tail, mode):
+        return TripleREScorer(head, relation, tail, mode,
+                              k=self.k, gamma=self.gamma).compute_score()
+
+    def TranS(self, head, relation, tail, mode):
+        return TranSScorer(head, relation, tail, mode, u=self.u, gamma=self.gamma).compute_score()
 
     def RotatE(self, head, relation, tail, mode):
         return RotatEScorer(head, relation, tail, mode,
