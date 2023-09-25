@@ -145,7 +145,9 @@ def run(strategy, args):
     print("1. Data loading complete.")
 
     assert args.score_functions in ["InterHT", "DistMult", "ComplEx",
-                                    "RotPro", "RotatE", "RotateCT"], f"{args.score_functions} is not implemented."
+                                    "RotPro", "RotatE", "RotateCT",
+                                    "STransE", "TranS", "TransD", "TransE",
+                                    "TripleRE"], f"{args.score_functions} is not implemented."
     print("2. Score function check complete.")
 
     with strategy.scope():
