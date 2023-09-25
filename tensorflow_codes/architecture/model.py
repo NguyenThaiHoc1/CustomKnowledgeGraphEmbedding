@@ -73,7 +73,7 @@ class TFKGEModel(tf.keras.Model):
             self.W = tf.Variable(tf.zeros([nrelation, self.relation_dim, self.relation_dim]), trainable=True)
             self.W.assign(initializer(self.W.shape))
 
-        if model_name not in ['TranSparse']:
+        if model_name in ['TranSparse']:
             self.entity_embedding.assign(initializer(self.entity_embedding.shape))
             self.relation_embedding.assign(initializer(self.relation_embedding.shape))
         else:
