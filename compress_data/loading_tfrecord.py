@@ -18,7 +18,6 @@ def read_dataloader(dataloader, show_shape=True):
             print(a.shape, b.shape, c.shape, d.shape)
             break
         count_split += 1
-        break
     print(count_split)
 
 
@@ -29,7 +28,7 @@ if __name__ == '__main__':
 
     # list all file tfrec
     file_list = os.listdir(folder_data_path)
-    tfrec_files = [os.path.join(folder_path, file) for file in file_list if file.endswith("head.tfrec")]
+    tfrec_files = [os.path.join(folder_data_path, file) for file in file_list if file.endswith("head.tfrec")]
     print("List file tfrec: \n", tfrec_files)
     raw_dataset = tf.data.TFRecordDataset(tfrec_files)
     dataloader = raw_dataset.map(parse_tfrecord_fn)

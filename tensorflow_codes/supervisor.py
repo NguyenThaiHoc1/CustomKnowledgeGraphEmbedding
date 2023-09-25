@@ -1,6 +1,7 @@
 import tensorflow as tf
 import time
 from tqdm import tqdm
+from collections import namedtuple
 
 
 class Trainer:
@@ -34,6 +35,7 @@ class Trainer:
 
             self.metrics["train_loss"].update_state(loss * self.strategy.num_replicas_in_sync)
 
+        # for _ in tf.range(99):
         self.strategy.run(train_step_fn, next(data_iter))
 
     @tf.function()
@@ -60,9 +62,13 @@ class Trainer:
             self.metrics["HITS_AT_3"].update_state(hits_at_3)
             self.metrics["HITS_AT_10"].update_state(hits_at_10)
 
+        # for _ in tf.range(29):
         self.strategy.run(test_step_fn, next(data_iter))
 
     def training(self, steps_per_tpu_call, epochs, steps_per_epoch):
+        def int_div_round_up(a, b):
+            return (a + b - 1) // b
+
         step = 0
         epoch = 0
         epoch_steps = 0
@@ -70,31 +76,48 @@ class Trainer:
         train_iteration_data = iter(self.train_dataloader)
         test_iteration_data = iter(self.test_dataloader) if self.test_dataloader is not None else None
 
+        BATCH_SIZE_VALIDATION = 4
+        VALIDATION_STEPS_PER_TPU_CALL = 29
+        NUM_VALIDATION_IMAGES = 3000
+        History = namedtuple('History', 'history')
+        history = History(
+            history={
+                'loss': [], 'MRR': [], 'MR': [], 'HITS_AT_1': []
+            }
+        )
         while True:
-            tqdm(epoch, total=epochs)
-            # run training step
+
             self.train_step(train_iteration_data)
             epoch_steps += steps_per_tpu_call
             step += steps_per_tpu_call
-            # print('=================', end='', flush=True)
+            print('=', end='', flush=True)
 
-            # report metrics
-            epoch_time = time.time() - epoch_start_time
-            # print('\nEPOCH {:d}/{:d}'.format(epoch + 1, epochs))
-            # print('time: {:0.1f}s'.format(epoch_time),
-            #       'loss: {:0.4f}'.format(round(float(self.metrics["train_loss"].result()), 4)),
-            #       flush=True)
+            if (step // steps_per_epoch) > epoch:
+                print('|', end='', flush=True)
 
-            # test
-            if test_iteration_data is not None:
+                # valid_epoch_steps = 0
+                # for _ in range(int_div_round_up(NUM_VALIDATION_IMAGES, BATCH_SIZE_VALIDATION * VALIDATION_STEPS_PER_TPU_CALL)):
                 self.test_step(test_iteration_data)
-                # print('Test step',
-                #       'MRR: {:0.4f}'.format(round(float(self.metrics["MRR"].result()), 4)),
-                #       'MR: {:0.4f}'.format(round(float(self.metrics["MR"].result()), 4)),
-                #       'HITS_AT_1: {:0.4f}'.format(round(float(self.metrics["HITS_AT_1"].result()), 4)),
-                #       'HITS_AT_3: {:0.4f}'.format(round(float(self.metrics["HITS_AT_3"].result()), 4)),
-                #       'HITS_AT_10: {:0.4f}'.format(round(float(self.metrics["HITS_AT_10"].result()), 4)),
-                #       flush=True)
+                # valid_epoch_steps += VALIDATION_STEPS_PER_TPU_CALL
+                print('=', end='', flush=True)
+
+                # history.history['loss'].append(self.metrics["train_loss"].result().numpy() / steps_per_epoch)
+                # history.history['MRR'].append(self.metrics["MRR"].result().numpy())
+                # history.history['MR'].append(self.metrics["MRR"].result().numpy())
+
+                history.history['loss'].append(self.metrics["train_loss"].result() / steps_per_epoch)
+                history.history['MRR'].append(self.metrics["MRR"].result())
+                history.history['MR'].append(self.metrics["MR"].result())
+                history.history['HITS_AT_1'].append(self.metrics["HITS_AT_1"].result())
+
+                epoch_time = time.time() - epoch_start_time
+                print('\nEPOCH {:d}/{:d}'.format(epoch + 1, epochs))
+                print('time: {:0.1f}s'.format(epoch_time),
+                      'loss: {:0.4f}'.format(history.history['loss'][-1]),
+                      'MRR: {:0.4f}'.format(history.history['MRR'][-1]),
+                      'MR: {:0.4f}'.format(history.history['MR'][-1]),
+                      'HITS_AT_1: {:0.4f}'.format(history.history['HITS_AT_1'][-1]),
+                      flush=True)
 
             epoch = step // steps_per_epoch
             epoch_steps = 0
@@ -105,6 +128,7 @@ class Trainer:
             self.metrics["HITS_AT_1"].reset_states()
             self.metrics["HITS_AT_3"].reset_states()
             self.metrics["HITS_AT_10"].reset_states()
+
             if epoch >= epochs:
                 break
 
