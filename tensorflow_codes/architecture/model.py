@@ -3,7 +3,7 @@ import numpy as np
 from .score_functions import (
     InterHTScorer, DistMultScorer, ComplEXScorer,
     RotatEScorer, RotateCTScorer, RotProScorer,
-    STransEScorer, TranSScorer, TransDScorer, TransEScorer, TripleREScorer
+    STransEScorer, TranSScorer, TransDScorer, TransEScorer, TripleREScorer, TranSparseScorer
 )
 
 
@@ -42,7 +42,6 @@ class TFKGEModel(tf.keras.Model):
         else:
             self.relation_dim = hidden_dim
 
-
         if model_name in ['InterHT', 'TranS']:
             self.u = 1
 
@@ -61,11 +60,23 @@ class TFKGEModel(tf.keras.Model):
         elif model_name in ['TripleRE']:
             self.k = tf.sqrt(tf.cast(hidden_dim, tf.float32))
 
+        elif model_name in ['TranSparse']:
+            initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
+            mask_list = []
+            for i in range(nrelation):
+                rate = 0.5
+                threshold = int(rate * 100)
+                prob = tf.random.uniform(shape=[self.relation_dim, self.relation_dim], minval=1, maxval=100)
+                mask_list.append(tf.where(prob >= threshold, 1.0, 0.0))
+            self.mask = tf.Variable(tf.stack(mask_list, axis=0), trainable=False)
+
+            self.W = tf.Variable(tf.zeros([nrelation, self.relation_dim, self.relation_dim]), trainable=True)
+            self.W.assign(initializer(self.W.shape))
+
         self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
         self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
 
         initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
-
         self.entity_embedding.assign(initializer(self.entity_embedding.shape))
 
         initializer = tf.random_uniform_initializer(-initializer_range, initializer_range)
@@ -82,7 +93,8 @@ class TFKGEModel(tf.keras.Model):
             'TranS': self.TranS,
             'TransD': self.TransD,
             'TransE': self.TransE,
-            'TripleRE': self.TripleRE
+            'TripleRE': self.TripleRE,
+            'TranSparse': self.TranSparse
         }
 
     def positive_call(self, sample, training=True, **kwargs):
@@ -184,3 +196,9 @@ class TFKGEModel(tf.keras.Model):
 
     def RotateCT(self, head, relation, tail, mode):
         return RotateCTScorer(head, relation, tail, mode).compute_score()
+
+    def TranSparse(self, head, relation, tail, mode):
+        return TranSparseScorer(head, relation, tail, mode,
+                                mask=self.mask,
+                                gamma=self.gamma,
+                                weight=self.W).compute_score()
