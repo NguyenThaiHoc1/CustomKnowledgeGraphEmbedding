@@ -33,6 +33,7 @@ def args_parser():
     parser.add_argument("-de", "--double_entity_embedding", action='store_true')
     parser.add_argument("-dr", "--double_relation_embedding", action='store_true')
     parser.add_argument("-tr", "--triple_relation_embedding", action='store_true')
+    parser.add_argument("-qr", "--quora_relation_embedding", action='store_true')
     parser.add_argument("--multiple_files", action='store_true')
 
     args = parser.parse_args()
@@ -156,7 +157,8 @@ def run(strategy, args):
             gamma=args.gamma,
             double_entity_embedding=args.double_entity_embedding,
             double_relation_embedding=args.double_relation_embedding,
-            triple_relation_embedding=args.triple_relation_embedding
+            triple_relation_embedding=args.triple_relation_embedding,
+            quora_relation_embedding=args.quora_relation_embedding
         )
 
         class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):

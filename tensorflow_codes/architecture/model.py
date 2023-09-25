@@ -10,7 +10,7 @@ from .score_functions import (
 class TFKGEModel(tf.keras.Model):
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma,
                  double_entity_embedding=False, double_relation_embedding=False,
-                 triple_relation_embedding=False,
+                 triple_relation_embedding=False, quora_relation_embedding=False,
                  **kwargs):
         super().__init__(**kwargs)
         self.model_name = model_name
@@ -38,6 +38,11 @@ class TFKGEModel(tf.keras.Model):
 
         if triple_relation_embedding:
             self.relation_dim = hidden_dim * 3
+        else:
+            self.relation_dim = hidden_dim
+
+        if quora_relation_embedding:
+            self.relation_dim *= 4
         else:
             self.relation_dim = hidden_dim
 
