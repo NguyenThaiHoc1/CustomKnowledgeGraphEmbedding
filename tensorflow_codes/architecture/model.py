@@ -26,25 +26,22 @@ class TFKGEModel(tf.keras.Model):
 
         initializer_range = (self.gamma.numpy() + self.epsilon) / hidden_dim
 
-        if double_relation_embedding:
-            self.relation_dim = hidden_dim * 2
-        else:
-            self.relation_dim = hidden_dim
-
+        # enitty
         if double_entity_embedding:
             self.entity_dim = hidden_dim * 2
         else:
             self.entity_dim = hidden_dim
 
-        if triple_relation_embedding:
+        # relation
+        if double_relation_embedding:
+            self.relation_dim = hidden_dim * 2
+        elif triple_relation_embedding:
             self.relation_dim = hidden_dim * 3
+        elif quora_relation_embedding:
+            self.relation_dim = hidden_dim * 4
         else:
             self.relation_dim = hidden_dim
 
-        if quora_relation_embedding:
-            self.relation_dim *= 4
-        else:
-            self.relation_dim = hidden_dim
 
         if model_name in ['InterHT', 'TranS']:
             self.u = 1
