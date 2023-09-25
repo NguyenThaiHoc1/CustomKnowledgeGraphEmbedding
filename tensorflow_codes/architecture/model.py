@@ -81,11 +81,11 @@ class TFKGEModel(tf.keras.Model):
             'RotatE': self.RotatE,
             'RotPro': self.RotPro,
             'RotateCT': self.RotateCT,
-            'STransE': self.STransEScorer,
-            'TranS': self.TranSScorer,
-            'TransD': self.TransDScorer,
-            'TransE': self.TransEScorer,
-            'TripleRE': self.TripleREScorer
+            'STransE': self.STransE,
+            'TranS': self.TranS,
+            'TransD': self.TransD,
+            'TransE': self.TransE,
+            'TripleRE': self.TripleRE
         }
 
     def positive_call(self, sample, training=True, **kwargs):
