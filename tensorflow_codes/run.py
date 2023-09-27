@@ -76,14 +76,14 @@ def loading_data(head_dataloader_path, tail_dataloader_path, bz, do_training=Tru
         head_parsed_dataset = head_raw_dataset.map(parse_tfrecord_fn)
         head_parsed_dataset = head_parsed_dataset.map(
             lambda inputs: reshape_function(inputs, batch_size=args.batch_size))
-        head_parsed_dataset = head_parsed_dataset.batch(bz)
+        head_parsed_dataset = head_parsed_dataset.batch(bz, drop_remainder=True)
 
         # loading tail file
         tail_raw_dataset = tf.data.TFRecordDataset(tail_dataloader_path)
         tail_parsed_dataset = tail_raw_dataset.map(parse_tfrecord_fn)
         tail_parsed_dataset = tail_parsed_dataset.map(
             lambda inputs: reshape_function(inputs, batch_size=args.batch_size))
-        tail_parsed_dataset = tail_parsed_dataset.batch(bz)
+        tail_parsed_dataset = tail_parsed_dataset.batch(bz, drop_remainder=True)
 
         combined_dataset = tf.data.Dataset.sample_from_datasets(
             [head_parsed_dataset, tail_parsed_dataset],
@@ -93,6 +93,8 @@ def loading_data(head_dataloader_path, tail_dataloader_path, bz, do_training=Tru
         if do_training:
             combined_dataset = combined_dataset.repeat()
 
+        combined_dataset = combined_dataset.shuffle(buffer_size=bz * 4)
+        combined_dataset = combined_dataset.prefetch(buffer_size=bz * 4)
         return combined_dataset
     except Exception as e:
         raise ValueError(f"func loading_data: {e}")
@@ -172,7 +174,7 @@ def run(strategy, args):
 
         # metrics
         list_metrics = {
-            "train_loss": tf.keras.metrics.Sum('training_loss', dtype=tf.float32),
+            "train_loss": tf.keras.metrics.Mean('training_loss', dtype=tf.float32),
             "MRR": tf.keras.metrics.Mean('mrr_evaluate', dtype=tf.float32),
             "MR": tf.keras.metrics.Mean('mr_evaluate', dtype=tf.float32),
             "HITS_AT_1": tf.keras.metrics.Mean('hit1_evaluate', dtype=tf.float32),
