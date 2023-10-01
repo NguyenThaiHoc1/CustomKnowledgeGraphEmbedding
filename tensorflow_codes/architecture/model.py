@@ -210,11 +210,6 @@ class TFKGEModel(tf.keras.Model):
                                 gamma=self.gamma,
                                 weight=self.W).compute_score()
 
-    # def compile(self, optimizer, metrics):
-    #     super().compile()
-    #     self.optimizer = optimizer
-    #     self.metrics = metrics
-
     def train_step(self, data, **kwargs):
         positive_sample, negative_sample, subsampling_weight, mode = data
 

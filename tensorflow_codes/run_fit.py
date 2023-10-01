@@ -30,6 +30,8 @@ def args_parser():
     parser.add_argument("--gamma", required=True, type=float)
     parser.add_argument("--epochs", required=False, type=int, default=1)
     parser.add_argument("--steps_per_epoch", required=False, type=int, default=1000)
+    parser.add_argument("--validation_freq", required=False, type=int, default=4)
+    parser.add_argument("--validation_steps", required=False, type=int, default=70)
     parser.add_argument("-de", "--double_entity_embedding", action='store_true')
     parser.add_argument("-dr", "--double_relation_embedding", action='store_true')
     parser.add_argument("-tr", "--triple_relation_embedding", action='store_true')
@@ -182,8 +184,8 @@ def run(strategy, args):
         steps_per_epoch=args.steps_per_epoch,
         epochs=args.epochs,
         validation_data=test_dataloader,
-        validation_freq=1,
-        validation_steps=2
+        validation_freq=args.validation_freq,
+        validation_steps=args.validation_steps
     )
     print("4. Training complete.")
 
