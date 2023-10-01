@@ -5,14 +5,15 @@ from .score_functions import (
     RotatEScorer, RotateCTScorer, RotProScorer,
     STransEScorer, TranSScorer, TransDScorer, TransEScorer, TripleREScorer, TranSparseScorer
 )
+from .metrics import MeanReciprocalRank
 
 
 class TFKGEModel(tf.keras.Model):
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma,
                  double_entity_embedding=False, double_relation_embedding=False,
                  triple_relation_embedding=False, quora_relation_embedding=False,
-                 **kwargs):
-        super().__init__(**kwargs)
+                 *args, **kwargs):
+        super().__init__()
         self.model_name = model_name
         self.nentity = nentity
         self.nrelation = nrelation
@@ -96,6 +97,10 @@ class TFKGEModel(tf.keras.Model):
             'TripleRE': self.TripleRE,
             'TranSparse': self.TranSparse
         }
+
+        # metrics
+        self.loss_tracker = tf.keras.metrics.Mean(name="loss")
+        self.mrr_tracker = MeanReciprocalRank(name='mrr')
 
     def positive_call(self, sample, training=True, **kwargs):
         sample, mode = sample
@@ -202,3 +207,67 @@ class TFKGEModel(tf.keras.Model):
                                 mask=self.mask,
                                 gamma=self.gamma,
                                 weight=self.W).compute_score()
+
+    # def compile(self, optimizer, metrics):
+    #     super().compile()
+    #     self.optimizer = optimizer
+    #     self.metrics = metrics
+
+    def train_step(self, data, **kwargs):
+        positive_sample, negative_sample, subsampling_weight, mode = data
+
+        with tf.GradientTape() as tape:
+            negative_score = self.negative_call(((positive_sample, negative_sample), mode[0]), training=True)
+            negative_score = tf.reduce_sum(
+                tf.nn.softmax(negative_score * 1, axis=1) * tf.math.log_sigmoid(-negative_score), axis=1,
+                keepdims=True
+            )
+            positive_score = self.positive_call(((positive_sample, negative_sample), 3), training=True)
+            positive_score = tf.math.log_sigmoid(positive_score)
+            positive_sample_loss = -tf.reduce_sum(subsampling_weight * positive_score) / tf.reduce_sum(
+                subsampling_weight)
+            negative_sample_loss = -tf.reduce_sum(subsampling_weight * negative_score) / tf.reduce_sum(
+                subsampling_weight)
+            loss = (positive_sample_loss + negative_sample_loss) / 2
+
+        grads = tape.gradient(loss, self.trainable_variables)
+        self.optimizer.apply_gradients(zip(grads, self.trainable_variables))
+
+        # Compute our own metrics
+        self.loss_tracker.update_state(loss)
+        return {"loss": self.loss_tracker.result()}
+
+    def test_step(self, data, **kwargs):
+        positive_sample, negative_sample, filter_bias, mode = data
+        score = self.negative_call(((positive_sample, negative_sample), mode[0]), training=False)
+        score += filter_bias
+        argsort = tf.argsort(score, axis=1, direction='DESCENDING')
+        positive_arg = tf.cond(tf.equal(mode[0], 0), lambda: positive_sample[:, 0], lambda: positive_sample[:, 2])
+        positive_arg = tf.cast(positive_arg, dtype=tf.int32)
+        rankings = tf.where(tf.equal(argsort, tf.expand_dims(positive_arg, axis=-1)))
+        true_rankings = rankings[:, -1] + 1
+
+        # # Calculate evaluation metrics
+        # mrr = 1.0 / tf.cast(true_rankings, dtype=tf.float32)
+        # mr = tf.cast(true_rankings, dtype=tf.float32)
+        # hits_at_1 = tf.where(true_rankings <= 1, 1.0, 0.0)
+        # hits_at_3 = tf.where(true_rankings <= 3, 1.0, 0.0)
+        # hits_at_10 = tf.where(true_rankings <= 10, 1.0, 0.0)
+
+        # Update the metrics.
+        self.mrr_tracker.update_state(true_rankings)
+
+        # Return a dict mapping metric names to current value.
+        # Note that it will include the loss (tracked in self.metrics).
+        return {
+            "MRR": self.mrr_tracker.result()
+        }
+
+    @property
+    def metrics(self):
+        # We list our `Metric` objects here so that `reset_states()` can be
+        # called automatically at the start of each epoch
+        # or at the start of `evaluate()`.
+        # If you don't implement this property, you have to call
+        # `reset_states()` yourself at the time of your choosing.
+        return [self.loss_tracker, self.mrr_tracker]
