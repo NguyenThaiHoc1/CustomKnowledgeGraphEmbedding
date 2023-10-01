@@ -89,7 +89,7 @@ class MeanRank(tf.keras.metrics.Metric):
         """
         return tf.math.divide_no_nan(self.total_rank, self.count)
 
-    def reset_states(self):
+    def reset_state(self):
         """
         Reset the metric state.
         """
@@ -126,7 +126,7 @@ class HitsAt1(tf.keras.metrics.Metric):
         """
         return tf.math.divide_no_nan(self.hits, self.total_samples)
 
-    def reset_states(self):
+    def reset_state(self):
         """
         Reset the metric state.
         """
