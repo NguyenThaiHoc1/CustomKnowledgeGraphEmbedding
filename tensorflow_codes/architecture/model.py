@@ -5,7 +5,7 @@ from .score_functions import (
     RotatEScorer, RotateCTScorer, RotProScorer,
     STransEScorer, TranSScorer, TransDScorer, TransEScorer, TripleREScorer, TranSparseScorer
 )
-from .metrics import MeanReciprocalRank
+from .metrics import MeanReciprocalRank, MeanRank, HitsAt1
 
 
 class TFKGEModel(tf.keras.Model):
@@ -101,6 +101,8 @@ class TFKGEModel(tf.keras.Model):
         # metrics
         self.loss_tracker = tf.keras.metrics.Mean(name="loss")
         self.mrr_tracker = MeanReciprocalRank(name='mrr')
+        self.mr_tracker = MeanRank(name='mr')
+        self.hitsat1_tracker = HitsAt1(name='hitsat1')
 
     def positive_call(self, sample, training=True, **kwargs):
         sample, mode = sample
@@ -247,27 +249,13 @@ class TFKGEModel(tf.keras.Model):
         rankings = tf.where(tf.equal(argsort, tf.expand_dims(positive_arg, axis=-1)))
         true_rankings = rankings[:, -1] + 1
 
-        # # Calculate evaluation metrics
-        # mrr = 1.0 / tf.cast(true_rankings, dtype=tf.float32)
-        # mr = tf.cast(true_rankings, dtype=tf.float32)
-        # hits_at_1 = tf.where(true_rankings <= 1, 1.0, 0.0)
-        # hits_at_3 = tf.where(true_rankings <= 3, 1.0, 0.0)
-        # hits_at_10 = tf.where(true_rankings <= 10, 1.0, 0.0)
-
         # Update the metrics.
         self.mrr_tracker.update_state(true_rankings)
 
         # Return a dict mapping metric names to current value.
         # Note that it will include the loss (tracked in self.metrics).
         return {
-            "MRR": self.mrr_tracker.result()
+            "MRR": self.mrr_tracker.result(),
+            "MR": self.mr_tracker.result(),
+            "HIT@1": self.hitsat1_tracker.result()
         }
-
-    @property
-    def metrics(self):
-        # We list our `Metric` objects here so that `reset_states()` can be
-        # called automatically at the start of each epoch
-        # or at the start of `evaluate()`.
-        # If you don't implement this property, you have to call
-        # `reset_states()` yourself at the time of your choosing.
-        return [self.loss_tracker, self.mrr_tracker]
