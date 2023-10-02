@@ -4,13 +4,17 @@ from .base_score import BaseScorer
 
 class RotProScorer(BaseScorer):
 
-    def __init__(self, head, relation, tail, mode):
+    def __init__(self, head, relation, tail, mode, embedding_range, pi, gamma):
         super().__init__(head, relation, tail, mode)
+        self.embedding_range = embedding_range
+        self.pi = pi
+        self.gamma = gamma
 
     def compute_score(self):
         re_head, im_head = tf.split(self.head, num_or_size_splits=2, axis=2)
         r_phase, proj_a, proj_b, proj_phase = tf.split(self.relation, num_or_size_splits=4, axis=2)
         re_tail, im_tail = tf.split(self.tail, num_or_size_splits=2, axis=2)
+        r_phase = r_phase / (self.embedding_range / self.pi)
 
         re_r_phase = tf.ones_like(r_phase) * tf.cos(r_phase)
         im_r_phase = tf.ones_like(r_phase) * tf.sin(r_phase)
