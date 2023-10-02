@@ -46,12 +46,11 @@ class MeanRank(tf.keras.metrics.Metric):
         - true_rankings: A tensor containing the true rankings.
         - sample_weight: Optional sample weights (not used in this metric).
         """
-        self.total_rank.assign_add(tf.reduce_sum(1.0 / tf.cast(true_rankings, dtype=tf.float32)))
+        self.total_rank.assign_add(tf.reduce_sum(tf.cast(true_rankings, dtype=tf.float32)))
         self.count.assign_add(tf.cast(tf.shape(true_rankings)[0], dtype=tf.float32))
 
         # valid_mask = tf.not_equal(true_rankings, 0)
         # valid_true_rankings = tf.boolean_mask(true_rankings, valid_mask)
-        #
         # self.total_rank.assign_add(tf.reduce_sum(valid_true_rankings))
         # self.count.assign_add(tf.cast(tf.shape(valid_true_rankings)[0], dtype=self.dtype))
 
@@ -90,7 +89,7 @@ class HitsAt1(tf.keras.metrics.Metric):
         hits_1 = tf.reduce_any(tf.equal(valid_true_rankings, 1))
 
         self.hits.assign_add(tf.cast(hits_1, dtype=self.dtype))
-        self.total_samples.assign_add(1.0)
+        self.total_samples.assign_add(tf.constant(1.0))
 
     def result(self):
         """

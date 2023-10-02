@@ -23,7 +23,7 @@ def read_dataloader(dataloader, show_shape=True):
 
 if __name__ == '__main__':
     folder_path = 'split_data/wn18rr'
-    folder_mode = 'test'
+    folder_mode = 'valid'
     folder_data_path = os.path.join(folder_path, folder_mode)
 
     # list all file tfrec
