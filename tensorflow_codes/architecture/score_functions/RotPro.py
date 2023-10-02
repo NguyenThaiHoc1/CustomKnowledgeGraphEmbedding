@@ -33,4 +33,4 @@ class RotProScorer(BaseScorer):
         hr = tf.complex(hr_real, hr_img)
         tt = tf.complex(tt_real, tt_img)
 
-        return tf.norm(hr - tt, ord=1, axis=-1)  # Default: 1 (like RotatE).
+        return self.gamma - tf.norm(hr - tt, ord=1, axis=-1)  # Default: 1 (like RotatE).
