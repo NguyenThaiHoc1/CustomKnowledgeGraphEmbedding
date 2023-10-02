@@ -21,4 +21,4 @@ class TransDScorer(BaseScorer):
 
         head_transfer = _transfer(head, p_head, p_relation)
         tail_transfer = _transfer(tail, p_tail, p_relation)
-        return tf.norm(head_transfer + relation - tail_transfer, axis=-1, ord=2) ** 2
+        return self.gamma - tf.norm(head_transfer + relation - tail_transfer, axis=-1, ord=2) ** 2
