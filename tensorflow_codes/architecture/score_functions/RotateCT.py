@@ -20,5 +20,5 @@ class RotateCTScorer(BaseScorer):
             tf.ones_like(r_phase) * tf.sin(r_phase))
 
         score = (c_head - c_b) * c_r - (c_tail - c_b)
-        score = tf.norm(score, ord=1, axis=-1)  # Default: norm 1
+        score = self.gamma - tf.norm(score, ord=1, axis=-1)  # Default: norm 1
         return score
