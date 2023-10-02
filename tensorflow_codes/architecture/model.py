@@ -199,10 +199,10 @@ class TFKGEModel(tf.keras.Model):
                             gamma=self.gamma).compute_score()
 
     def RotPro(self, head, relation, tail, mode):
-        return RotProScorer(head, relation, tail, mode, embedding_range=self.embedding_range, pi=self.pi).compute_score()
+        return RotProScorer(head, relation, tail, mode, embedding_range=self.embedding_range, pi=self.pi, gamma=self.gamma).compute_score()
 
     def RotateCT(self, head, relation, tail, mode):
-        return RotateCTScorer(head, relation, tail, mode, embedding_range=self.embedding_range, pi=self.pi).compute_score()
+        return RotateCTScorer(head, relation, tail, mode, embedding_range=self.embedding_range, pi=self.pi, gamma=self.gamma).compute_score()
 
     def TranSparse(self, head, relation, tail, mode):
         return TranSparseScorer(head, relation, tail, mode,
