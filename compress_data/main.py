@@ -45,6 +45,48 @@ def train_create_dataloader(input_dir, negative_sample_size, batch_size):
     return train_dataloader_head, train_dataloader_tail, nrelation, nentity
 
 
+def valid_create_dataloader(input_dir, batch_size):
+    dataraw_regular = RegularDataRaw(input_dir=input_dir)
+    train_triples, valid_triples, test_triples, entity2id, relation2id = dataraw_regular.read()
+    nentity = len(entity2id)
+    nrelation = len(relation2id)
+
+    all_true_triples = train_triples + valid_triples + test_triples
+
+    valid_generator_head = TestDataGenerator(
+        valid_triples, all_true_triples, nentity, nrelation, 0
+    )
+
+    valid_generator_tail = TestDataGenerator(
+        valid_triples, all_true_triples, nentity, nrelation, 1
+    )
+
+    valid_dataset_head, valid_length_head = TestDataGenerator2Dataset().convert(
+        data_generator=valid_generator_head,
+        nrelation=nrelation,
+        nentity=nentity
+    )
+    valid_dataset_tail, valid_length_tail = TestDataGenerator2Dataset().convert(
+        data_generator=valid_generator_tail,
+        nrelation=nrelation,
+        nentity=nentity
+    )
+
+    valid_dataloader_head = DataLoader(valid_dataset_head).gen_dataset(
+        batch_size=batch_size, is_training=False, shuffle=False,
+        input_pipeline_context=None, preprocess=None,
+        drop_remainder=False
+    )
+
+    valid_dataloader_tail = DataLoader(valid_dataset_tail).gen_dataset(
+        batch_size=batch_size, is_training=False, shuffle=False,
+        input_pipeline_context=None, preprocess=None,
+        drop_remainder=False
+    )
+
+    return valid_dataloader_head, valid_dataloader_tail, nrelation, nentity
+
+
 def test_create_dataloader(input_dir, batch_size):
     dataraw_regular = RegularDataRaw(input_dir=input_dir)
     train_triples, valid_triples, test_triples, entity2id, relation2id = dataraw_regular.read()
@@ -128,11 +170,15 @@ def get_args():
 
 
 def run(args):
-    assert args.mode in ["train", "test"], 'Mode has just only "train" and "test".'
+    assert args.mode in ["train", "test", "valid"], 'Mode has just only "train" and "test".'
     print("1. Ready.")
     if args.mode == "train":
         head_dataloader, tail_dataloader, nrelation, nentity = train_create_dataloader(input_dir=args.input_dir,
                                                                                        negative_sample_size=args.negative_sample_size,
+                                                                                       batch_size=args.batch_size)
+
+    elif args.mode == "valid":
+        head_dataloader, tail_dataloader, nrelation, nentity = valid_create_dataloader(input_dir=args.input_dir,
                                                                                        batch_size=args.batch_size)
 
     else:
