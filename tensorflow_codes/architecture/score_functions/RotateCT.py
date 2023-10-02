@@ -4,13 +4,17 @@ from .base_score import BaseScorer
 
 class RotateCTScorer(BaseScorer):
 
-    def __init__(self, head, relation, tail, mode):
+    def __init__(self, head, relation, tail, mode, embedding_range, pi, gamma):
         super().__init__(head, relation, tail, mode)
+        self.embedding_range = embedding_range
+        self.pi = pi
+        self.gamma = gamma
 
     def compute_score(self):
         re_head, im_head = tf.split(self.head, num_or_size_splits=2, axis=2)
         r_phase, re_b, im_b = tf.split(self.relation, num_or_size_splits=3, axis=2)
         re_tail, im_tail = tf.split(self.tail, num_or_size_splits=2, axis=2)
+        r_phase = r_phase / (self.embedding_range / self.pi)
 
         c_head = tf.complex(re_head, im_head)
         c_tail = tf.complex(re_tail, im_tail)
