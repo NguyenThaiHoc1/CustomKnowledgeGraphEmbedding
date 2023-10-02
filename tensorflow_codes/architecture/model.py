@@ -246,6 +246,8 @@ class TFKGEModel(tf.keras.Model):
 
         # Update the metrics.
         self.mrr_tracker.update_state(true_rankings)
+        self.mr_tracker.update_state(true_rankings)
+        self.hitsat1_tracker.update_state(true_rankings)
 
         # Return a dict mapping metric names to current value.
         # Note that it will include the loss (tracked in self.metrics).

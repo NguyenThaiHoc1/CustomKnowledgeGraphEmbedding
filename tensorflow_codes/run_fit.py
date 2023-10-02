@@ -179,13 +179,22 @@ def run(strategy, args):
             loss=None
         )
 
+    checkpoint_filepath = f'gs://hien7613storage2/datasets/KGE/ckpt_{args.score_functions}/'
+    model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+        filepath=checkpoint_filepath,
+        save_weights_only=True,
+        monitor='val_MRR',
+        mode='max',
+        save_best_only=True)
+
     kge_model.fit(
         train_dataloader,
         steps_per_epoch=args.steps_per_epoch,
         epochs=args.epochs,
         validation_data=test_dataloader,
         validation_freq=args.validation_freq,
-        validation_steps=args.validation_steps
+        validation_steps=args.validation_steps,
+        callbacks=[model_checkpoint_callback]
     )
     print("4. Training complete.")
 
