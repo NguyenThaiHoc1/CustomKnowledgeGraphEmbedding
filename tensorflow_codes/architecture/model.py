@@ -19,6 +19,7 @@ class TFKGEModel(tf.keras.Model):
         self.nrelation = nrelation
         self.hidden_dim = hidden_dim
         self.epsilon = 2.0
+        self.pi = tf.constant(np.pi, dtype=tf.float32)
 
         self.gamma = tf.Variable([gamma], trainable=False, dtype=tf.float32)
 
