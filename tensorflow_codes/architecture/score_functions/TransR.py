@@ -16,5 +16,5 @@ class TranSparseScorer(BaseScorer):
         relation = tf.linalg.normalize(self.relation, ord=2, axis=-1)[0]
 
         score = p_head * relation - p_tail
-        score = self.gamma - tf.norm(score, ord=1, axis=2)
+        score = self.gamma - tf.norm(score, ord=2, axis=2) ** 2
         return score
