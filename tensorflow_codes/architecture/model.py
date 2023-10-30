@@ -123,8 +123,9 @@ class TFKGEModel(tf.keras.Model):
                 W = tf.gather(self.W, positive_sample[:, 1])
                 mask = tf.gather(self.mask, positive_sample[:, 1])
                 single_score = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
-
-            single_score = self.model_func[self.model_name](head, relation, tail, mode)
+            else:
+                single_score = self.model_func[self.model_name](head, relation, tail, mode)
+                
             return single_score
 
         positive_score = single_mode(sample, mode)
@@ -146,12 +147,12 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, tail_part[:, 2])
             tail = tf.expand_dims(tail, axis=1)
 
-             if self.model_name in ['TranSparse', 'TransR']:
+            if self.model_name in ['TranSparse', 'TransR']:
                 W = tf.gather(self.W, tail_part[:, 1])
                 mask = tf.gather(self.mask, tail_part[:, 1])
                 negative_head_score = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
-
-            negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
+            else:
+                negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
             return negative_head_score
 
         def tail_batch_mode(sample, mode):
@@ -171,8 +172,8 @@ class TFKGEModel(tf.keras.Model):
                 W = tf.gather(self.W, head_part[:, 1])
                 mask = tf.gather(self.mask, head_part[:, 1])
                 negative_tail_score  = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
-
-            negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
+            else:
+                negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
             return negative_tail_score
 
         head_score = head_batch_mode(sample, mode)
