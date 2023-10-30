@@ -118,6 +118,11 @@ class TFKGEModel(tf.keras.Model):
 
             tail = tf.gather(self.entity_embedding, positive_sample[:, 2])
             tail = tf.expand_dims(tail, axis=1)
+            
+            if self.model_name in ['TranSparse', 'TransR']:
+                W = tf.gather(self.W, positive_sample[:, 1])
+                mask = tf.gather(self.mask, positive_sample[:, 1])
+                single_score = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
 
             single_score = self.model_func[self.model_name](head, relation, tail, mode)
             return single_score
@@ -141,6 +146,11 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, tail_part[:, 2])
             tail = tf.expand_dims(tail, axis=1)
 
+             if self.model_name in ['TranSparse', 'TransR']:
+                W = tf.gather(self.W, tail_part[:, 1])
+                mask = tf.gather(self.mask, tail_part[:, 1])
+                negative_head_score = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
+
             negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
             return negative_head_score
 
@@ -156,6 +166,11 @@ class TFKGEModel(tf.keras.Model):
 
             tail = tf.gather(self.entity_embedding, tf.reshape(tail_part, [-1]))
             tail = tf.reshape(tail, [batch_size, negative_sample_size, -1])
+
+            if self.model_name in ['TranSparse', 'TransR']:
+                W = tf.gather(self.W, head_part[:, 1])
+                mask = tf.gather(self.mask, head_part[:, 1])
+                negative_tail_score  = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
 
             negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
             return negative_tail_score
@@ -206,9 +221,9 @@ class TFKGEModel(tf.keras.Model):
 
     def TranSparse(self, head, relation, tail, mode):
         return TranSparseScorer(head, relation, tail, mode,
+                                weight=self.W
                                 mask=self.mask,
-                                gamma=self.gamma,
-                                weight=self.W).compute_score()
+                                gamma=self.gamma).compute_score()
 
     def train_step(self, data, **kwargs):
         positive_sample, negative_sample, subsampling_weight, mode = data
