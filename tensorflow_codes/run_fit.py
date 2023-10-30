@@ -153,7 +153,7 @@ def run(strategy, args):
     assert args.score_functions in ["InterHT", "DistMult", "ComplEx",
                                     "RotPro", "RotatE", "RotateCT",
                                     "STransE", "TranS", "TransD", "TransE",
-                                    "TripleRE", "TranSparse"], f"{args.score_functions} is not implemented."
+                                    "TripleRE", "TranSparse", "TransR"], f"{args.score_functions} is not implemented."
     print("2. Score function check complete.")
 
     
