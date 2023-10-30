@@ -4,8 +4,8 @@ from .base_score import BaseScorer
 
 class ComplEXScorer(BaseScorer):
 
-    def __init__(self, head, relation, tail, mode):
-        super().__init__(head, relation, tail, mode)
+    def __init__(self, head, relation, tail, mode, W, mask):
+        super().__init__(head, relation, tail, mode, W, mask)
 
     def compute_score(self):
         re_head, im_head = tf.split(self.head, num_or_size_splits=2, axis=2)
