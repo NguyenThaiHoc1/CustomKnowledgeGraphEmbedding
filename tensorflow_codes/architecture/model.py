@@ -73,6 +73,11 @@ class TFKGEModel(tf.keras.Model):
 
             self.W = tf.Variable(tf.zeros([nrelation, self.relation_dim, self.relation_dim]), trainable=True)
             self.W.assign(initializer(self.W.shape))
+            
+        elif model_name in ['TransR']:
+            self.W = tf.Variable(tf.zeros([nrelation, self.relation_dim, self.relation_dim]), trainable=True)
+            self.W.assign(initializer(self.W.shape))
+            self.mask = tf.Variable(tf.ones([nrelation, self.relation_dim, self.relation_dim]), trainable=False)
 
         self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
         self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
@@ -95,7 +100,8 @@ class TFKGEModel(tf.keras.Model):
             'TransD': self.TransD,
             'TransE': self.TransE,
             'TripleRE': self.TripleRE,
-            'TranSparse': self.TranSparse
+            'TranSparse': self.TranSparse,
+            'TransR': self.TransR,
         }
 
         # metrics
@@ -220,6 +226,9 @@ class TFKGEModel(tf.keras.Model):
         return RotateCTScorer(head, relation, tail, mode, None, None, embedding_range=self.embedding_range, pi=self.pi, gamma=self.gamma).compute_score()
 
     def TranSparse(self, head, relation, tail, mode, W, mask):
+        return TranSparseScorer(head, relation, tail, mode, W, mask, gamma=self.gamma).compute_score()
+
+    def TransR(self, head, relation, tail, mode, W, mask):
         return TranSparseScorer(head, relation, tail, mode, W, mask, gamma=self.gamma).compute_score()
 
     def train_step(self, data, **kwargs):
