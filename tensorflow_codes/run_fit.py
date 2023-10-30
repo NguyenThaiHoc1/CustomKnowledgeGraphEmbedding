@@ -3,6 +3,7 @@ import os
 import argparse
 from architecture.model import TFKGEModel
 from supervisor import Trainer
+import pickle
 
 
 def check_device():
@@ -24,6 +25,7 @@ def args_parser():
     parser.add_argument("--test_path", required=False, type=str)
 
     parser.add_argument("-sf", "--score_functions", required=True, type=str)
+    parser.add_argument("--dataset", required=True, type=str)
     parser.add_argument("--nentity", required=True, type=int)
     parser.add_argument("--nrelation", required=True, type=int)
     parser.add_argument("--hidden_dim", required=True, type=int)
@@ -154,6 +156,12 @@ def run(strategy, args):
                                     "TripleRE", "TranSparse"], f"{args.score_functions} is not implemented."
     print("2. Score function check complete.")
 
+    
+    # load pre_weight for transparse
+    weight_path = './data/' + args.dataset + '/{args.dataset}_transparse_preweight.pkl'
+    with open(weight_path, 'rb') as f:
+        pre_weights = pickle.load(f)
+    
     with strategy.scope():
         kge_model = TFKGEModel(
             model_name=args.score_functions,
@@ -164,7 +172,8 @@ def run(strategy, args):
             double_entity_embedding=args.double_entity_embedding,
             double_relation_embedding=args.double_relation_embedding,
             triple_relation_embedding=args.triple_relation_embedding,
-            quora_relation_embedding=args.quora_relation_embedding
+            quora_relation_embedding=args.quora_relation_embedding,
+            pre_weights = pre_weights
         )
 
         class LRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
