@@ -191,7 +191,7 @@ def run(strategy, args):
             loss=None
         )
 
-    checkpoint_filepath = f'gs://hien7613storage2/datasets/KGE/ckpt_{args.score_functions}/'
+    checkpoint_filepath = f'gs://hien7613storage2/datasets/KGE/ckpt_{args.dataset}_{args.score_functions}/'
     model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
         save_weights_only=True,
