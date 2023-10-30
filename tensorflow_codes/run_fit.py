@@ -159,7 +159,7 @@ def run(strategy, args):
     
     # load pre_weight for transparse
     if args.score_functions == "TranSparse":
-        weight_path = './data/' + args.dataset + '/{args.dataset}_transparse_preweight.pkl'
+        weight_path = './CustomKnowledgeGraphEmbedding/data/' + args.dataset + f'/{args.dataset}_transparse_preweight.pkl'
         with open(weight_path, 'rb') as f:
             pre_weights = pickle.load(f)
     else:
