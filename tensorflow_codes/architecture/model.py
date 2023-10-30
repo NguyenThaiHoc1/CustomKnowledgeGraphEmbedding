@@ -12,7 +12,7 @@ class TFKGEModel(tf.keras.Model):
     def __init__(self, model_name, nentity, nrelation, hidden_dim, gamma,
                  double_entity_embedding=False, double_relation_embedding=False,
                  triple_relation_embedding=False, quora_relation_embedding=False,
-                 *args, **kwargs):
+                 pre_weights = None, *args, **kwargs):
         super().__init__()
         self.model_name = model_name
         self.nentity = nentity
@@ -66,8 +66,7 @@ class TFKGEModel(tf.keras.Model):
         elif model_name in ['TranSparse']:
             mask_list = []
             for i in range(nrelation):
-                rate = 0.5
-                threshold = int(rate * 100)
+                threshold = int(pre_weights[i] * 100)
                 prob = tf.random.uniform(shape=[self.relation_dim, self.relation_dim], minval=1, maxval=100)
                 mask_list.append(tf.where(prob >= threshold, 1.0, 0.0))
             self.mask = tf.Variable(tf.stack(mask_list, axis=0), trainable=False)
