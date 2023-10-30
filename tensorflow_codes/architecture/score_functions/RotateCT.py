@@ -4,8 +4,8 @@ from .base_score import BaseScorer
 
 class RotateCTScorer(BaseScorer):
 
-    def __init__(self, head, relation, tail, mode, embedding_range, pi, gamma):
-        super().__init__(head, relation, tail, mode)
+    def __init__(self, head, relation, tail, mode, W, mask, embedding_range, pi, gamma):
+        super().__init__(head, relation, tail, mode, W, mask)
         self.embedding_range = embedding_range
         self.pi = pi
         self.gamma = gamma
