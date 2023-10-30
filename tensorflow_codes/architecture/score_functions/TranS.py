@@ -4,8 +4,8 @@ from .base_score import BaseScorer
 
 class TranSScorer(BaseScorer):
 
-    def __init__(self, head, relation, tail, mode, u, gamma):
-        super().__init__(head, relation, tail, mode)
+    def __init__(self, head, relation, tail, mode, W, mask, u, gamma):
+        super().__init__(head, relation, tail, mode, W, mask)
         self.u = u
         self.gamma = gamma
 
