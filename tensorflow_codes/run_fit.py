@@ -158,9 +158,12 @@ def run(strategy, args):
 
     
     # load pre_weight for transparse
-    weight_path = './data/' + args.dataset + '/{args.dataset}_transparse_preweight.pkl'
-    with open(weight_path, 'rb') as f:
-        pre_weights = pickle.load(f)
+    if args.score_functions == "TranSparse":
+        weight_path = './data/' + args.dataset + '/{args.dataset}_transparse_preweight.pkl'
+        with open(weight_path, 'rb') as f:
+            pre_weights = pickle.load(f)
+    else:
+        pre_weights = None
     
     with strategy.scope():
         kge_model = TFKGEModel(
