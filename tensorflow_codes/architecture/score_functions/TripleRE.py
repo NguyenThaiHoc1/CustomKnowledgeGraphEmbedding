@@ -4,8 +4,8 @@ from .base_score import BaseScorer
 
 class TripleREScorer(BaseScorer):
 
-    def __init__(self, head, relation, tail, mode, k, gamma):
-        super().__init__(head, relation, tail, mode)
+    def __init__(self, head, relation, tail, mode, W, mask, k, gamma):
+        super().__init__(head, relation, tail, mode, W, mask)
         self.k = k
         self.gamma = gamma
 
