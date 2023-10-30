@@ -181,49 +181,45 @@ class TFKGEModel(tf.keras.Model):
         return head_score * negative_condition + tail_score * (1 - negative_condition)
 
     def InterHT(self, head, relation, tail, mode):
-        return InterHTScorer(head, relation, tail, mode, u=self.u, gamma=self.gamma).compute_score()
+        return InterHTScorer(head, relation, tail, mode, None, None, u=self.u, gamma=self.gamma).compute_score()
 
     def DistMult(self, head, relation, tail, mode):
-        return DistMultScorer(head, relation, tail, mode).compute_score()
+        return DistMultScorer(head, relation, tail, mode, None, None).compute_score()
 
     def ComplEx(self, head, relation, tail, mode):
-        return ComplEXScorer(head, relation, tail, mode).compute_score()
+        return ComplEXScorer(head, relation, tail, mode, None, None).compute_score()
 
     def TransE(self, head, relation, tail, mode):
-        return TransEScorer(head, relation, tail, mode, gamma=self.gamma).compute_score()
+        return TransEScorer(head, relation, tail, mode, None, None, gamma=self.gamma).compute_score()
 
     def TransD(self, head, relation, tail, mode):
-        return TransDScorer(head, relation, tail, mode).compute_score()
+        return TransDScorer(head, relation, tail, mode, None, None).compute_score()
 
     def STransE(self, head, relation, tail, mode):
-        return STransEScorer(head, relation, tail, mode,
-                             w1=self.W1,
-                             w2=self.W2).compute_score()
+        return STransEScorer(head, relation, tail, mode, None, None,
+                             w1=self.W1, w2=self.W2).compute_score()
 
     def TripleRE(self, head, relation, tail, mode):
-        return TripleREScorer(head, relation, tail, mode,
+        return TripleREScorer(head, relation, tail, mode, None, None,
                               k=self.k, gamma=self.gamma).compute_score()
 
     def TranS(self, head, relation, tail, mode):
-        return TranSScorer(head, relation, tail, mode, u=self.u, gamma=self.gamma).compute_score()
+        return TranSScorer(head, relation, tail, mode, None, None, u=self.u, gamma=self.gamma).compute_score()
 
     def RotatE(self, head, relation, tail, mode):
-        return RotatEScorer(head, relation, tail, mode,
+        return RotatEScorer(head, relation, tail, mode, None, None,
                             embedding_range=self.embedding_range,
                             pi=self.pi,
                             gamma=self.gamma).compute_score()
 
     def RotPro(self, head, relation, tail, mode):
-        return RotProScorer(head, relation, tail, mode, embedding_range=self.embedding_range, pi=self.pi, gamma=self.gamma).compute_score()
+        return RotProScorer(head, relation, tail, mode, None, None, embedding_range=self.embedding_range, pi=self.pi, gamma=self.gamma).compute_score()
 
     def RotateCT(self, head, relation, tail, mode):
-        return RotateCTScorer(head, relation, tail, mode, embedding_range=self.embedding_range, pi=self.pi, gamma=self.gamma).compute_score()
+        return RotateCTScorer(head, relation, tail, mode, None, None, embedding_range=self.embedding_range, pi=self.pi, gamma=self.gamma).compute_score()
 
-    def TranSparse(self, head, relation, tail, mode):
-        return TranSparseScorer(head, relation, tail, mode,
-                                weight=self.W
-                                mask=self.mask,
-                                gamma=self.gamma).compute_score()
+    def TranSparse(self, head, relation, tail, mode, W, mask):
+        return TranSparseScorer(head, relation, tail, mode, W, mask, gamma=self.gamma).compute_score()
 
     def train_step(self, data, **kwargs):
         positive_sample, negative_sample, subsampling_weight, mode = data
