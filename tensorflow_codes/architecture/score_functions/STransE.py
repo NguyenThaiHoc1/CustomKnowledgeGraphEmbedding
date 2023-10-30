@@ -4,8 +4,8 @@ from .base_score import BaseScorer
 
 class STransEScorer(BaseScorer):
 
-    def __init__(self, head, relation, tail, mode, w1, w2):
-        super().__init__(head, relation, tail, mode)
+    def __init__(self, head, relation, tail, mode, W, mask, w1, w2):
+        super().__init__(head, relation, tail, mode, W, mask)
         self.w1 = w1
         self.w2 = w2
 
