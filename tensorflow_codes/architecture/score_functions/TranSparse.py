@@ -4,16 +4,14 @@ from .base_score import BaseScorer
 
 class TranSparseScorer(BaseScorer):
 
-    def __init__(self, head, relation, tail, mode, mask, gamma, weight):
-        super().__init__(head, relation, tail, mode)
-        self.mask = mask
+    def __init__(self, head, relation, tail, mode, W, mask, gamma):
+        super().__init__(head, relation, tail, mode, W, mask)
         self.gamma = gamma
-        self.weight = weight
 
     def compute_score(self):
-        p_head = tf.matmul(self.head, (self.mask * self.weight))
+        p_head = tf.matmul(self.head, (self.mask * self.W))
         p_head = tf.linalg.normalize(p_head, ord=2, axis=-1)[0]
-        p_tail = tf.matmul(self.head, (self.mask * self.weight))
+        p_tail = tf.matmul(self.head, (self.mask * self.W))
         p_tail = tf.linalg.normalize(p_tail, ord=2, axis=-1)[0]
         relation = tf.linalg.normalize(self.relation, ord=2, axis=-1)[0]
 
