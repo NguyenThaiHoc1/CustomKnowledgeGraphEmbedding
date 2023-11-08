@@ -18,7 +18,7 @@ class RotatEScorer(BaseScorer):
         im_relation = tf.sin(phase_relation)
 
         re_score_0 = re_relation * re_tail + im_relation * im_tail - re_head
-        im_score_0 = re_relation * im_tail - im_relation * im_tail - im_head
+        im_score_0 = re_relation * im_tail - im_relation * re_tail - im_head
         re_score_1 = re_head * re_relation - im_head * im_relation - re_tail
         im_score_1 = re_head * im_relation + im_head * re_relation - im_tail
 
