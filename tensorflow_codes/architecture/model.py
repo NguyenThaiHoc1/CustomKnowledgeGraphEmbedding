@@ -162,7 +162,7 @@ class TFKGEModel(tf.keras.Model):
                 negative_head_score = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
             elif self.model_name in ['TransR']:
                 W = tf.gather(self.W, tail_part[:, 1])
-                negative_head_score = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
+                negative_head_score = self.model_func[self.model_name](head, relation, tail, mode, W)
             else:
                 negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
             return negative_head_score
@@ -186,7 +186,7 @@ class TFKGEModel(tf.keras.Model):
                 negative_tail_score  = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
             elif self.model_name in ['TransR']:
                 W = tf.gather(self.W, head_part[:, 1])
-                negative_tail_score  = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
+                negative_tail_score  = self.model_func[self.model_name](head, relation, tail, mode, W)
             else:
                 negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
             return negative_tail_score
