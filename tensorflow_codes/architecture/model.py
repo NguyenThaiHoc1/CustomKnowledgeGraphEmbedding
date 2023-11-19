@@ -238,7 +238,7 @@ class TFKGEModel(tf.keras.Model):
         return TranSparseScorer(head, relation, tail, mode, W, mask, gamma=self.gamma).compute_score()
 
     def TransR(self, head, relation, tail, mode, W):
-        return TranSparseScorer(head, relation, tail, mode, W, gamma=self.gamma).compute_score()
+        return TransRScorer(head, relation, tail, mode, W, None, gamma=self.gamma).compute_score()
 
     def train_step(self, data, **kwargs):
         positive_sample, negative_sample, subsampling_weight, mode = data
