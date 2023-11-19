@@ -77,7 +77,7 @@ class TFKGEModel(tf.keras.Model):
         elif model_name in ['TransR']:
             self.W = tf.Variable(tf.zeros([nrelation, self.relation_dim, self.relation_dim]), trainable=True)
             self.W.assign(initializer(self.W.shape))
-            self.mask = tf.Variable(tf.ones([nrelation, self.relation_dim, self.relation_dim]), trainable=False)
+            # self.mask = tf.Variable(tf.ones([nrelation, self.relation_dim, self.relation_dim]), trainable=False)
 
         self.entity_embedding = tf.Variable(tf.zeros([nentity, self.entity_dim]), trainable=True)
         self.relation_embedding = tf.Variable(tf.zeros([nrelation, self.relation_dim]), trainable=True)
@@ -125,10 +125,13 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, positive_sample[:, 2])
             tail = tf.expand_dims(tail, axis=1)
             
-            if self.model_name in ['TranSparse', 'TransR']:
+            if self.model_name in ['TranSparse']:
                 W = tf.gather(self.W, positive_sample[:, 1])
                 mask = tf.gather(self.mask, positive_sample[:, 1])
                 single_score = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
+            elif self.model_name in ['TransR']:
+                W = tf.gather(self.W, positive_sample[:, 1])
+                single_score = self.model_func[self.model_name](head, relation, tail, mode, W)
             else:
                 single_score = self.model_func[self.model_name](head, relation, tail, mode)
                 
@@ -153,9 +156,12 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, tail_part[:, 2])
             tail = tf.expand_dims(tail, axis=1)
 
-            if self.model_name in ['TranSparse', 'TransR']:
+            if self.model_name in ['TranSparse']:
                 W = tf.gather(self.W, tail_part[:, 1])
                 mask = tf.gather(self.mask, tail_part[:, 1])
+                negative_head_score = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
+            elif self.model_name in ['TransR']:
+                W = tf.gather(self.W, tail_part[:, 1])
                 negative_head_score = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
             else:
                 negative_head_score = self.model_func[self.model_name](head, relation, tail, mode)
@@ -174,9 +180,12 @@ class TFKGEModel(tf.keras.Model):
             tail = tf.gather(self.entity_embedding, tf.reshape(tail_part, [-1]))
             tail = tf.reshape(tail, [batch_size, negative_sample_size, -1])
 
-            if self.model_name in ['TranSparse', 'TransR']:
+            if self.model_name in ['TranSparse']:
                 W = tf.gather(self.W, head_part[:, 1])
                 mask = tf.gather(self.mask, head_part[:, 1])
+                negative_tail_score  = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
+            elif self.model_name in ['TransR']:
+                W = tf.gather(self.W, head_part[:, 1])
                 negative_tail_score  = self.model_func[self.model_name](head, relation, tail, mode, W, mask)
             else:
                 negative_tail_score = self.model_func[self.model_name](head, relation, tail, mode)
@@ -228,8 +237,8 @@ class TFKGEModel(tf.keras.Model):
     def TranSparse(self, head, relation, tail, mode, W, mask):
         return TranSparseScorer(head, relation, tail, mode, W, mask, gamma=self.gamma).compute_score()
 
-    def TransR(self, head, relation, tail, mode, W, mask):
-        return TranSparseScorer(head, relation, tail, mode, W, mask, gamma=self.gamma).compute_score()
+    def TransR(self, head, relation, tail, mode, W):
+        return TranSparseScorer(head, relation, tail, mode, W, gamma=self.gamma).compute_score()
 
     def train_step(self, data, **kwargs):
         positive_sample, negative_sample, subsampling_weight, mode = data
