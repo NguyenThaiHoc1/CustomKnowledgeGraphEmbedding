@@ -10,3 +10,4 @@ from .TransD import TransDScorer
 from .TransE import TransEScorer
 from .TripleRE import TripleREScorer
 from .TranSparse import TranSparseScorer
+from .TransR import TransRScorer
