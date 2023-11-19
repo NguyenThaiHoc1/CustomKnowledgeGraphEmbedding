@@ -3,7 +3,8 @@ import numpy as np
 from .score_functions import (
     InterHTScorer, DistMultScorer, ComplEXScorer,
     RotatEScorer, RotateCTScorer, RotProScorer,
-    STransEScorer, TranSScorer, TransDScorer, TransEScorer, TripleREScorer, TranSparseScorer
+    STransEScorer, TranSScorer, TransDScorer, 
+    TransEScorer, TripleREScorer, TranSparseScorer, TransRScorer
 )
 from .metrics import MeanReciprocalRank, MeanRank, HitsAt1
 
