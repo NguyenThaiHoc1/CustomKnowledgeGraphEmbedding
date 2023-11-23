@@ -202,6 +202,7 @@ def run(strategy, args):
     kge_model.fit(
         train_dataloader,
         steps_per_epoch=args.steps_per_epoch,
+        initial_epoch=100,
         epochs=args.epochs,
         validation_data=test_dataloader,
         validation_freq=args.validation_freq,
